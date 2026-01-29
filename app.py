@@ -10,8 +10,8 @@ import tempfile
 # --- CONFIGURAÇÕES DE LAYOUT ---
 st.set_page_config(page_title="Gerador de Relatórios V0.4.1", layout="wide", page_icon="📑")
 
-# Largura de 130mm (13cm) para garantir que título e imagem caibam na mesma página
-LARGURA_OTIMIZADA = Mm(130)
+# Largura de 130mm (16cm) para garantir que título e imagem caibam na mesma página
+LARGURA_OTIMIZADA = Mm(160)
 
 def processar_anexo(doc_template, arquivo):
     """Detecta o tipo de arquivo e retorna lista de InlineImages."""
@@ -162,3 +162,4 @@ if btn_gerar:
 # --- RODAPÉ ---
 st.markdown("---")
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
