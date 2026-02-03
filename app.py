@@ -11,42 +11,50 @@ import matplotlib.pyplot as plt
 from openpyxl import load_workbook
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.4.3", layout="wide")
+st.set_page_config(page_title="Gerador de Relatórios V0.4.4", layout="wide")
 
 # Largura de 165mm conforme solicitado para preenchimento da página
 LARGURA_OTIMIZADA = Mm(165)
-
 def excel_para_imagem(doc_template, arquivo_excel):
     """
-    Lê o intervalo D3:E16 da aba TRANSFERENCIAS, limpa dados nulos,
-    aplica negrito, destaca o cabeçalho e gera uma imagem para o Word.
+    Lê o intervalo D3:E16 da aba TRANSFERENCIAS, limpa nulos, 
+    formata a segunda coluna como inteiro, aplica negrito e gera imagem.
     """
     try:
         # Leitura do intervalo D3:E16
-        # skiprows=2 (pula linhas 1 e 2)
-        # nrows=14 (lê 14 linhas a partir da 3)
         df = pd.read_excel(
             arquivo_excel, 
             sheet_name="TRANSFERENCIAS", 
             usecols="D:E", 
             skiprows=2, 
-            nrows=8, 
+            nrows=14, 
             header=None
         )
         
-        # Substitui valores nulos (NaN) por strings vazias
+        # Substitui valores nulos por vazio e formata a segunda coluna (índice 1)
         df = df.fillna('')
         
+        def format_inteiro(val):
+            if val == '': return ''
+            try:
+                # Converte para float e depois int para remover decimais (.0)
+                return str(int(float(val)))
+            except (ValueError, TypeError):
+                return str(val)
+        
+        df[1] = df[1].apply(format_inteiro)
+        
         # Configuração da figura para renderização
-        fig, ax = plt.subplots(figsize=(10, 6))
+        # Ajustamos o figsize para ser mais estreito
+        fig, ax = plt.subplots(figsize=(8, 6))
         ax.axis('off')
         
-        # Criação da tabela
+        # Criação da tabela com larguras de coluna reduzidas
         tabela = ax.table(
             cellText=df.values, 
             loc='center', 
             cellLoc='center',
-            colWidths=[0.45, 0.45]
+            colWidths=[0.35, 0.35]
         )
         
         # Estilização técnica da tabela
@@ -62,24 +70,23 @@ def excel_para_imagem(doc_template, arquivo_excel):
             # Formatação da primeira linha (Cabeçalho destacado)
             if row == 0:
                 cell.set_facecolor('#E0E0E0')  # Cor de destaque (Cinza claro)
-                # Simulação de mesclagem: se for a segunda célula da primeira linha, removemos o texto
                 if col == 1:
                     cell.get_text().set_text('')
-                # Centralizamos o texto da primeira célula como título do intervalo
                 if col == 0:
-                    cell.get_text().set_position((0.5, 0.5)) # Tenta centralizar visualmente
+                    cell.get_text().set_position((0.5, 0.5))
             
             # Bordas da tabela
             cell.set_edgecolor('#000000')
             cell.set_linewidth(1)
 
-        # Salvar em buffer de memória com alta resolução
+        # Salvar em buffer de memória
         img_buf = io.BytesIO()
         plt.savefig(img_buf, format='png', bbox_inches='tight', dpi=200, transparent=False)
         plt.close(fig)
         img_buf.seek(0)
         
-        return [InlineImage(doc_template, img_buf, width=LARGURA_OTIMIZADA)]
+        # Retorna a imagem com uma largura menor (120mm) no documento Word
+        return [InlineImage(doc_template, img_buf, width=Mm(120))]
     except Exception as e:
         st.error(f"Erro no processamento da tabela Excel: {e}")
         return []
@@ -127,7 +134,7 @@ def gerar_pdf(docx_path, output_dir):
 
 # --- INTERFACE (UI LIMPA - SEM ÍCONES/EMOJIS) ---
 st.title("Automacao de Relatorio de Prestacao - UPA Nova Cidade")
-st.caption("Versao 0.4.3")
+st.caption("Versao 0.4.4")
 
 campos_texto_col1 = [
     "SISTEMA_MES_REFERENCIA", "ANALISTA_TOTAL_ATENDIMENTOS", "ANALISTA_MEDICO_CLINICO",
@@ -235,6 +242,7 @@ if btn_gerar:
 
 st.markdown("---")
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
 
 
 
