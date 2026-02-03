@@ -18,7 +18,7 @@ LARGURA_OTIMIZADA = Mm(165)
 
 def excel_para_imagem(doc_template, arquivo_excel):
     """
-    Extrai o intervalo D3:E16 da aba TRANSFERENCIAS mantendo a formatação 
+    Extrai o intervalo D3:E10 da aba TRANSFERENCIAS mantendo a formatação 
     estilizada para o relatório.
     """
     try:
@@ -28,7 +28,7 @@ def excel_para_imagem(doc_template, arquivo_excel):
             sheet_name="TRANSFERENCIAS", 
             usecols="D:E", 
             skiprows=2, 
-            nrows=14, 
+            nrows=8, 
             header=None
         )
         
@@ -219,3 +219,4 @@ if btn_gerar:
 
 st.markdown("---")
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
