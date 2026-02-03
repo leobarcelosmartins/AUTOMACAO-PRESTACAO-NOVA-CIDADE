@@ -18,25 +18,30 @@ LARGURA_OTIMIZADA = Mm(165)
 
 def excel_para_imagem(doc_template, arquivo_excel):
     """
-    Extrai o intervalo D3:E10 da aba TRANSFERENCIAS mantendo a formatação 
-    estilizada para o relatório.
+    Lê o intervalo D3:E16 da aba TRANSFERENCIAS, limpa dados nulos,
+    aplica negrito, destaca o cabeçalho e gera uma imagem para o Word.
     """
     try:
-        # Leitura dos dados para processamento
+        # Leitura do intervalo D3:E16
+        # skiprows=2 (pula linhas 1 e 2)
+        # nrows=14 (lê 14 linhas a partir da 3)
         df = pd.read_excel(
             arquivo_excel, 
             sheet_name="TRANSFERENCIAS", 
             usecols="D:E", 
             skiprows=2, 
-            nrows=8, 
+            nrows=14, 
             header=None
         )
         
-        # Configuração visual da tabela (Matplotlib)
-        fig, ax = plt.subplots(figsize=(12, 7))
+        # Substitui valores nulos (NaN) por strings vazias
+        df = df.fillna('')
+        
+        # Configuração da figura para renderização
+        fig, ax = plt.subplots(figsize=(10, 6))
         ax.axis('off')
         
-        # Criação da tabela com escala e fontes profissionais
+        # Criação da tabela
         tabela = ax.table(
             cellText=df.values, 
             loc='center', 
@@ -44,28 +49,39 @@ def excel_para_imagem(doc_template, arquivo_excel):
             colWidths=[0.45, 0.45]
         )
         
-        # Ajustes de Formatação (Fidelidade ao design do relatório)
+        # Estilização técnica da tabela
         tabela.auto_set_font_size(False)
-        tabela.set_fontsize(12)
-        tabela.scale(1.2, 2.2)
+        tabela.set_fontsize(11)
+        tabela.scale(1.2, 1.8)
         
-        # Estilização de células (Bordas e Cabeçalho)
+        # Iteração pelas células para aplicar formatação específica
         for (row, col), cell in tabela.get_celld().items():
-            cell.set_edgecolor('#000000') # Bordas pretas sólidas
-            cell.set_linewidth(0.5)
+            # Aplicar Negrito em todo o texto
+            cell.get_text().set_weight('bold')
+            
+            # Formatação da primeira linha (Cabeçalho destacado)
             if row == 0:
-                cell.set_text_props(weight='bold')
-                cell.set_facecolor('#F2F2F2') # Fundo cinza claro para cabeçalho
-        
-        # Conversão para imagem em alta resolução
+                cell.set_facecolor('#E0E0E0')  # Cor de destaque (Cinza claro)
+                # Simulação de mesclagem: se for a segunda célula da primeira linha, removemos o texto
+                if col == 1:
+                    cell.get_text().set_text('')
+                # Centralizamos o texto da primeira célula como título do intervalo
+                if col == 0:
+                    cell.get_text().set_position((0.5, 0.5)) # Tenta centralizar visualmente
+            
+            # Bordas da tabela
+            cell.set_edgecolor('#000000')
+            cell.set_linewidth(1)
+
+        # Salvar em buffer de memória com alta resolução
         img_buf = io.BytesIO()
-        plt.savefig(img_buf, format='png', bbox_inches='tight', dpi=300, transparent=True)
+        plt.savefig(img_buf, format='png', bbox_inches='tight', dpi=200, transparent=False)
         plt.close(fig)
         img_buf.seek(0)
         
         return [InlineImage(doc_template, img_buf, width=LARGURA_OTIMIZADA)]
     except Exception as e:
-        st.error(f"Erro ao processar tabela Excel: {e}")
+        st.error(f"Erro no processamento da tabela Excel: {e}")
         return []
 
 def processar_anexo(doc_template, arquivo, marcador=None):
@@ -219,4 +235,5 @@ if btn_gerar:
 
 st.markdown("---")
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
 
