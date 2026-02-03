@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from openpyxl import load_workbook
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.4.3", layout="wide")
+st.set_page_config(page_title="Gerador de Relatórios V0.4.2", layout="wide")
 
 # Largura de 165mm conforme solicitado para preenchimento da página
 LARGURA_OTIMIZADA = Mm(165)
@@ -127,7 +127,7 @@ def gerar_pdf(docx_path, output_dir):
 
 # --- INTERFACE (UI LIMPA - SEM ÍCONES/EMOJIS) ---
 st.title("Automacao de Relatorio de Prestacao - UPA Nova Cidade")
-st.caption("Versao 0.4.2")
+st.caption("Versao 0.4.3")
 
 campos_texto_col1 = [
     "SISTEMA_MES_REFERENCIA", "ANALISTA_TOTAL_ATENDIMENTOS", "ANALISTA_MEDICO_CLINICO",
@@ -235,6 +235,7 @@ if btn_gerar:
 
 st.markdown("---")
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
 
 
 
