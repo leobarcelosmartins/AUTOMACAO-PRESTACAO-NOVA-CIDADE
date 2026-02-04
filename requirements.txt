@@ -6,4 +6,4 @@ Pillow
 pandas
 openpyxl
 matplotlib
-st-paste-button
+streamlit-paste-button
