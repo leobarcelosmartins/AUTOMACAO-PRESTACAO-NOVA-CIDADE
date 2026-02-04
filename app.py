@@ -15,7 +15,7 @@ st.set_page_config(page_title="Gerador de Relatórios V0.4.1", layout="wide")
 
 # Largura de 165mm para garantir o preenchimento da página nas imagens padrão
 LARGURA_OTIMIZADA = Mm(165)
-# Largura reduzida para a tabela Excel conforme solicitado
+# Largura reduzida para a tabela Excel conforme solicitado para melhor ajuste abaixo dos títulos
 LARGURA_TABELA = Mm(120)
 
 def excel_para_imagem(doc_template, arquivo_excel):
@@ -42,7 +42,7 @@ def excel_para_imagem(doc_template, arquivo_excel):
         def format_inteiro(val):
             if val == '' or val is None: return ''
             try:
-                # Converte para float e depois int para remover decimais
+                # Converte para float e depois int para remover decimais (.0)
                 return str(int(float(val)))
             except (ValueError, TypeError):
                 return str(val)
@@ -52,6 +52,7 @@ def excel_para_imagem(doc_template, arquivo_excel):
             df[col_labels[1]] = df[col_labels[1]].apply(format_inteiro)
         
         # Configuração da figura para renderização
+        # Layout profissional para a tabela
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.axis('off')
         
@@ -68,28 +69,32 @@ def excel_para_imagem(doc_template, arquivo_excel):
         tabela.set_fontsize(11)
         tabela.scale(1.2, 1.8)
         
-        # Iteração pelas células para aplicar formatação
+        # Iteração pelas células para aplicar formatação específica
         for (row, col), cell in tabela.get_celld().items():
-            # Aplicar Negrito em todo o texto
+            # Aplicar Negrito em todo o texto da tabela
             cell.get_text().set_weight('bold')
             
             # Formatação da primeira linha (Cabeçalho destacado / Simulação de Mesclagem)
             if row == 0:
                 cell.set_facecolor('#D3D3D3')  # Cinza claro de destaque
+                # Se for a segunda coluna do cabeçalho, limpa o texto para simular mesclagem
                 if col == 1:
                     cell.get_text().set_text('')
+                # Alinhamento centralizado para o título do cabeçalho na primeira coluna
                 if col == 0:
                     cell.get_text().set_position((0.5, 0.5))
             
-            # Bordas pretas nítidas
+            # Bordas pretas nítidas e sólidas
             cell.set_edgecolor('#000000')
             cell.set_linewidth(1)
 
+        # Salvar em buffer de memória com alta resolução (DPI 200)
         img_buf = io.BytesIO()
         plt.savefig(img_buf, format='png', bbox_inches='tight', dpi=200, transparent=False)
         plt.close(fig)
         img_buf.seek(0)
         
+        # Retorna a imagem com largura reduzida (120mm) para o Word
         return [InlineImage(doc_template, img_buf, width=LARGURA_TABELA)]
     except Exception as e:
         st.error(f"Erro no processamento da tabela Excel: {e}")
@@ -102,7 +107,7 @@ def processar_conteudo(doc_template, conteudo, marcador=None):
     
     imagens = []
     try:
-        # Verifica se é uma imagem colada (objeto Image do PIL)
+        # Verifica se é uma imagem colada (objeto Image do PIL vindo do st_paste_button)
         if hasattr(conteudo, 'save'):
             img_byte_arr = io.BytesIO()
             conteudo.save(img_byte_arr, format='PNG')
@@ -113,18 +118,22 @@ def processar_conteudo(doc_template, conteudo, marcador=None):
         # Caso contrário, trata como ficheiro carregado (UploadedFile)
         extensao = conteudo.name.lower()
         
+        # Se for o marcador da tabela e for Excel, extrai o intervalo específico
         if marcador == "TABELA_TRANSFERENCIA" and (extensao.endswith(".xlsx") or extensao.endswith(".xls")):
             return excel_para_imagem(doc_template, conteudo)
 
+        # Processamento de PDF (converte cada página em imagem)
         if extensao.endswith(".pdf"):
             pdf_stream = conteudo.read()
             pdf_doc = fitz.open(stream=pdf_stream, filetype="pdf")
             for pagina in pdf_doc:
+                # Matriz 2x2 garante que a qualidade no PDF final seja excelente
                 pix = pagina.get_pixmap(matrix=fitz.Matrix(2, 2))
                 img_byte_arr = io.BytesIO(pix.tobytes())
                 imagens.append(InlineImage(doc_template, img_byte_arr, width=LARGURA_OTIMIZADA))
             pdf_doc.close()
         else:
+            # Imagens padrão (JPG, PNG)
             imagens.append(InlineImage(doc_template, conteudo, width=LARGURA_OTIMIZADA))
         return imagens
     except Exception as e:
@@ -132,7 +141,7 @@ def processar_conteudo(doc_template, conteudo, marcador=None):
         return []
 
 def gerar_pdf(docx_path, output_dir):
-    """Conversão via LibreOffice Headless."""
+    """Conversão via LibreOffice Headless (exige packages.txt com 'libreoffice')."""
     try:
         subprocess.run(
             ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', output_dir, docx_path],
@@ -148,6 +157,7 @@ def gerar_pdf(docx_path, output_dir):
 st.title("Automação de Relatório de Prestação - UPA Nova Cidade")
 st.caption("Versão 0.4.1")
 
+# Estrutura de organização dos campos de texto em duas colunas
 campos_texto_col1 = [
     "SISTEMA_MES_REFERENCIA", "ANALISTA_TOTAL_ATENDIMENTOS", "ANALISTA_MEDICO_CLINICO",
     "ANALISTA_MEDICO_PEDIATRA", "ANALISTA_ODONTO_CLINICO"
@@ -157,6 +167,7 @@ campos_texto_col2 = [
     "OUVIDORIA_INTERNA", "OUVIDORIA_EXTERNA"
 ]
 
+# Marcadores para upload de evidências
 campos_upload = {
     "EXCEL_META_ATENDIMENTOS": "Grade de Metas",
     "IMAGEM_PRINT_ATENDIMENTO": "Prints Atendimento",
@@ -175,7 +186,7 @@ campos_upload = {
     "PRINT_CLASSIFICACAO": "Classificação de Risco"
 }
 
-# Inicialização do estado para imagens coladas
+# Inicialização do estado para persistir as imagens coladas durante a sessão
 if 'pasted_images' not in st.session_state:
     st.session_state.pasted_images = {}
 
@@ -203,7 +214,7 @@ with st.form("form_v4_1"):
             col = c_up1 if i % 2 == 0 else c_up2
             with col:
                 st.write(f"**{label}**")
-                # Botão para colar imagem do clipboard
+                # Componente para colar imagem diretamente do clipboard
                 pasted_img = paste_image_button(
                     label=f"Colar print para {label}",
                     key=f"paste_{marcador}"
@@ -212,7 +223,7 @@ with st.form("form_v4_1"):
                     st.session_state.pasted_images[marcador] = pasted_img.image_data
                     st.info("Imagem capturada do clipboard.")
 
-                # Upload de ficheiro tradicional
+                # Upload de ficheiro tradicional como fallback ou alternativa
                 tipos = ['png', 'jpg', 'pdf', 'xlsx', 'xls'] if marcador == "TABELA_TRANSFERENCIA" else ['png', 'jpg', 'pdf']
                 uploads[marcador] = st.file_uploader(
                     "Ou escolha um ficheiro", 
@@ -228,28 +239,31 @@ if btn_gerar:
         st.error("O campo 'Mês de Referência' é obrigatório.")
     else:
         try:
-            # Cálculo Automático: Soma de Médicos
+            # Cálculo Automático: Soma da força de trabalho médica
             try:
-                m_clinico = int(contexto.get("ANALISTA_MEDICO_CLINICO", 0) or 0)
-                m_pediatra = int(contexto.get("ANALISTA_MEDICO_PEDIATRA", 0) or 0)
+                # Tratamento de segurança para inputs vazios
+                m_clinico = int(contexto.get("ANALISTA_MEDICO_CLINICO") or 0)
+                m_pediatra = int(contexto.get("ANALISTA_MEDICO_PEDIATRA") or 0)
                 contexto["SISTEMA_TOTAL_MEDICOS"] = m_clinico + m_pediatra
             except Exception:
                 contexto["SISTEMA_TOTAL_MEDICOS"] = "Erro no cálculo"
 
+            # Processamento em diretório temporário para segurança do servidor
             with tempfile.TemporaryDirectory() as pasta_temp:
                 docx_temp = os.path.join(pasta_temp, "relatorio_final.docx")
                 doc = DocxTemplate("template.docx")
 
-                with st.spinner("Processando anexos e cálculos..."):
+                with st.spinner("Processando anexos e efetuando cálculos..."):
                     for marcador in campos_upload.keys():
-                        # Prioriza o ficheiro carregado, se não existir, tenta a imagem colada
+                        # Lógica de prioridade: Ficheiro carregado > Imagem colada
                         conteudo = uploads.get(marcador) or st.session_state.pasted_images.get(marcador)
                         contexto[marcador] = processar_conteudo(doc, conteudo, marcador)
 
+                # Renderiza o template Word injetando os dados e imagens
                 doc.render(contexto)
                 doc.save(docx_temp)
                 
-                with st.spinner("A converter para PDF..."):
+                with st.spinner("Convertendo documento para PDF..."):
                     pdf_final = gerar_pdf(docx_temp, pasta_temp)
                     
                     if pdf_final and os.path.exists(pdf_final):
@@ -265,7 +279,7 @@ if btn_gerar:
                                 mime="application/pdf"
                             )
                     else:
-                        st.error("A conversão para PDF falhou.")
+                        st.error("A conversão para PDF falhou. Verifique o ambiente do servidor.")
 
         except Exception as e:
             st.error(f"Erro Crítico no Sistema: {e}")
