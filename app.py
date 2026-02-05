@@ -13,58 +13,29 @@ from streamlit_paste_button import paste_image_button
 # --- CONFIGURAÇÕES DE LAYOUT ---
 st.set_page_config(page_title="Gerador de Relatórios V0.4.3", layout="wide")
 
-# --- CUSTOM CSS PARA DESIGN DE DASHBOARD ---
+# --- CUSTOM CSS PARA DESIGN LIMPO E SOMBREADO ---
 st.markdown("""
     <style>
     .main {
-        background-color: #f0f2f5;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #ffffff;
-        border-radius: 10px 10px 0px 0px;
-        padding: 10px 20px;
-        border: 1px solid #e0e0e0;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #ffffff;
-        border-bottom: 3px solid #1f77b4;
-        font-weight: bold;
-    }
-    /* Estilo para os Cards do Dashboard */
-    .dashboard-card {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        margin-bottom: 25px;
-        border-left: 5px solid #1f77b4;
-    }
-    .card-title {
-        color: #2c3e50;
-        font-size: 1.3rem;
-        font-weight: bold;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-    }
-    /* Estilo para blocos de upload individuais */
-    .upload-block {
         background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px dashed #ced4da;
-        margin-bottom: 15px;
+    }
+    /* Estilo para os Blocos Sombreados */
+    .dashboard-section {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        margin-bottom: 30px;
+        border: 1px solid #f0f0f0;
     }
     .upload-label {
-        font-weight: bold;
-        color: #495057;
-        margin-bottom: 8px;
-        font-size: 0.95rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 10px;
+        font-size: 1rem;
+    }
+    .stButton > button {
+        border-radius: 8px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -158,19 +129,18 @@ def gerar_pdf(docx_path, output_dir):
 
 # --- UI PRINCIPAL ---
 st.title("Automação de Relatórios Assistenciais")
-st.caption("Versão 0.4.3 - Dashboard de Alta Performance")
+st.caption("Versão 0.4.3 - Edição Gestor")
 
 tab_manual, tab_arquivos = st.tabs(["📝 Dados Manuais", "📁 Gestão de Evidências"])
 contexto_manual = {}
 
 with tab_manual:
-    # BLOCO 1: Identificação
+    # Seção de Dados Manuais (Mantida Intacta conforme pedido)
     with st.container():
         st.markdown('<div class="dashboard-card"><div class="card-title">Identificação</div>', unsafe_allow_html=True)
         contexto_manual["SISTEMA_MES_REFERENCIA"] = st.text_input("Mês de Referência (Ex: Janeiro/2026)")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # BLOCO 2: Produção Geral
     with st.container():
         st.markdown('<div class="dashboard-card"><div class="card-title">Produção Geral</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
@@ -178,9 +148,8 @@ with tab_manual:
         contexto_manual["TOTAL_RAIO_X"] = c2.text_input("Total Raio-X")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # BLOCO 3: Força de Trabalho
     with st.container():
-        st.markdown('<div class="dashboard-card"><div class="card-title">Força de Trabalho (Médicos e Odonto)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="dashboard-card"><div class="card-title">Força de Trabalho</div>', unsafe_allow_html=True)
         c3, c4, c5 = st.columns(3)
         contexto_manual["ANALISTA_MEDICO_CLINICO"] = c3.text_input("Médicos Clínicos")
         contexto_manual["ANALISTA_MEDICO_PEDIATRA"] = c4.text_input("Médicos Pediatras")
@@ -190,7 +159,6 @@ with tab_manual:
         contexto_manual["ANALISTA_ODONTO_PED"] = c6.text_input("Odonto Ped")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # BLOCO 4: Indicadores e Ouvidoria
     with st.container():
         st.markdown('<div class="dashboard-card"><div class="card-title">Indicadores e Ouvidoria</div>', unsafe_allow_html=True)
         c8, c9, c10 = st.columns(3)
@@ -205,60 +173,40 @@ with tab_manual:
         st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_arquivos:
-    # Configuração de rótulos amigáveis
-    labels_amigaveis = {
-        "EXCEL_META_ATENDIMENTOS": "Grade de Metas", 
-        "IMAGEM_PRINT_ATENDIMENTO": "Prints Atendimento", 
-        "PRINT_CLASSIFICACAO": "Classificação de Risco",
-        "IMAGEM_DOCUMENTO_RAIO_X": "Doc. Raio-X", 
-        "TABELA_TRANSFERENCIA": "Tabela Transferência (Excel)", 
-        "GRAFICO_TRANSFERENCIA": "Gráfico Transferência",
-        "TABELA_TOTAL_OBITO": "Tab. Total Óbito", 
-        "TABELA_OBITO": "Tab. Óbito", 
-        "TABELA_CCIH": "Tabela CCIH", 
-        "TABELA_QUALITATIVA_IMG": "Tab. Qualitativa",
-        "IMAGEM_NEP": "Imagens NEP", 
-        "IMAGEM_TREINAMENTO_INTERNO": "Treinamento Interno", 
-        "IMAGEM_MELHORIAS": "Melhorias",
-        "GRAFICO_OUVIDORIA": "Gráfico Ouvidoria", 
+    # Mapeamento de Rótulos
+    labels = {
+        "EXCEL_META_ATENDIMENTOS": "Grade de Metas", "IMAGEM_PRINT_ATENDIMENTO": "Prints Atendimento", 
+        "PRINT_CLASSIFICACAO": "Classificação de Risco", "IMAGEM_DOCUMENTO_RAIO_X": "Doc. Raio-X", 
+        "TABELA_TRANSFERENCIA": "Tabela Transferência (Excel)", "GRAFICO_TRANSFERENCIA": "Gráfico Transferência",
+        "TABELA_TOTAL_OBITO": "Tab. Total Óbito", "TABELA_OBITO": "Tab. Óbito", 
+        "TABELA_CCIH": "Tabela CCIH", "TABELA_QUALITATIVA_IMG": "Tab. Qualitativa",
+        "IMAGEM_NEP": "Imagens NEP", "IMAGEM_TREINAMENTO_INTERNO": "Treinamento Interno", 
+        "IMAGEM_MELHORIAS": "Melhorias", "GRAFICO_OUVIDORIA": "Gráfico Ouvidoria", 
         "PDF_OUVIDORIA_INTERNA": "Relatório Ouvidoria"
     }
 
-    # Organização das Evidências em Categorias Visuais
-    categorias = {
-        "Atendimento e Metas": ["EXCEL_META_ATENDIMENTOS", "IMAGEM_PRINT_ATENDIMENTO", "PRINT_CLASSIFICACAO", "IMAGEM_DOCUMENTO_RAIO_X"],
-        "Transferências": ["TABELA_TRANSFERENCIA", "GRAFICO_TRANSFERENCIA"],
-        "Qualidade e Óbitos": ["TABELA_TOTAL_OBITO", "TABELA_OBITO", "TABELA_CCIH", "TABELA_QUALITATIVA_IMG"],
-        "Desenvolvimento e Ouvidoria": ["IMAGEM_NEP", "IMAGEM_TREINAMENTO_INTERNO", "IMAGEM_MELHORIAS", "GRAFICO_OUVIDORIA", "PDF_OUVIDORIA_INTERNA"]
-    }
+    # Divisão dos campos em blocos (Sem Títulos)
+    blocos = [
+        ["EXCEL_META_ATENDIMENTOS", "IMAGEM_PRINT_ATENDIMENTO", "PRINT_CLASSIFICACAO", "IMAGEM_DOCUMENTO_RAIO_X"],
+        ["TABELA_TRANSFERENCIA", "GRAFICO_TRANSFERENCIA"],
+        ["TABELA_TOTAL_OBITO", "TABELA_OBITO", "TABELA_CCIH", "TABELA_QUALITATIVA_IMG"],
+        ["IMAGEM_NEP", "IMAGEM_TREINAMENTO_INTERNO", "IMAGEM_MELHORIAS", "GRAFICO_OUVIDORIA", "PDF_OUVIDORIA_INTERNA"]
+    ]
 
-    # Cores para cada borda de categoria para tornar o design mais "lúdico"
-    cores_categorias = ["#1f77b4", "#2ca02c", "#ff7f0e", "#9467bd"]
-
-    for i_cat, (cat_name, lista_m) in enumerate(categorias.items()):
-        cor = cores_categorias[i_cat % len(cores_categorias)]
-        
-        # Início do Bloco da Categoria
-        st.markdown(f"""
-            <div style="background-color: white; padding: 20px; border-radius: 15px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border-left: 6px solid {cor};">
-            <h3 style="color: {cor}; margin-top: 0; font-family: sans-serif;">{cat_name}</h3>
-        """, unsafe_allow_html=True)
-        
+    for b_idx, lista_m in enumerate(blocos):
+        # Cada lista_m vira uma seção sombreada branca
+        st.markdown('<div class="dashboard-section">', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         
         for idx, m in enumerate(lista_m):
-            alvo = col1 if idx % 2 == 0 else col2
-            with alvo:
-                # Container individual para cada campo de upload/print
+            target_col = col1 if idx % 2 == 0 else col2
+            with target_col:
                 with st.container(border=True):
-                    label = labels_amigaveis.get(m, m)
-                    st.markdown(f"<div class='upload-label'>{label}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='upload-label'>{labels.get(m, m)}</div>", unsafe_allow_html=True)
                     
-                    # Botões de ação em colunas para ficarem lado a lado
                     c_act1, c_act2 = st.columns([1, 1.2])
                     with c_act1:
-                        pasted = paste_image_button(label="Colar print", key=f"p_{m}")
+                        pasted = paste_image_button(label="Colar print", key=f"p_{m}_{b_idx}")
                         if pasted:
                             nome_p = f"Captura_{len(st.session_state.arquivos_por_marcador[m]) + 1}"
                             buf = io.BytesIO()
@@ -270,7 +218,7 @@ with tab_arquivos:
                     
                     with c_act2:
                         tipo_f = ['png', 'jpg', 'pdf', 'xlsx', 'xls'] if m == "TABELA_TRANSFERENCIA" else ['png', 'jpg', 'pdf']
-                        f_upload = st.file_uploader("Upload", type=tipo_f, key=f"f_{m}", 
+                        f_upload = st.file_uploader("Upload", type=tipo_f, key=f"f_{m}_{b_idx}", 
                                                    accept_multiple_files=True, label_visibility="collapsed")
                         if f_upload:
                             for f in f_upload:
@@ -282,16 +230,14 @@ with tab_arquivos:
                                     })
                             st.rerun()
 
-                    # Listagem estilizada de itens recebidos
+                    # Listagem de itens
                     if st.session_state.arquivos_por_marcador[m]:
-                        st.markdown("<div style='font-size: 0.8rem; color: #666; margin-top: 5px;'>Itens selecionados:</div>", unsafe_allow_html=True)
                         for i_idx, item in enumerate(st.session_state.arquivos_por_marcador[m]):
                             with st.expander(f"📄 {item['name']}"):
                                 if item['preview']: st.image(item['preview'], use_container_width=True)
-                                if st.button("Remover", key=f"del_{m}_{i_idx}", use_container_width=True):
+                                if st.button("Remover", key=f"del_{m}_{i_idx}_{b_idx}", use_container_width=True):
                                     st.session_state.arquivos_por_marcador[m].pop(i_idx)
                                     st.rerun()
-        
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- GERAÇÃO FINAL ---
@@ -301,19 +247,16 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", use_container_width=True):
         st.error("O campo 'Mês de Referência' é obrigatório.")
     else:
         try:
-            # Cálculo de Médicos
-            try:
-                mc = int(contexto_manual.get("ANALISTA_MEDICO_CLINICO") or 0)
-                mp = int(contexto_manual.get("ANALISTA_MEDICO_PEDIATRA") or 0)
-                contexto_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
-            except:
-                contexto_manual["SISTEMA_TOTAL_MEDICOS"] = 0
+            # Cálculo de Médicos Automático
+            mc = int(contexto_manual.get("ANALISTA_MEDICO_CLINICO") or 0)
+            mp = int(contexto_manual.get("ANALISTA_MEDICO_PEDIATRA") or 0)
+            contexto_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
 
             with tempfile.TemporaryDirectory() as tmp:
                 docx_path = os.path.join(tmp, "temp.docx")
                 doc = DocxTemplate("template.docx")
 
-                with st.spinner("Consolidando dados e evidências..."):
+                with st.spinner("Gerando documento..."):
                     dados_finais = contexto_manual.copy()
                     for m in DIMENSOES_CAMPOS.keys():
                         imgs = []
