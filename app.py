@@ -130,7 +130,7 @@ def gerar_pdf(docx_path, output_dir):
 
 # --- UI ---
 st.title("Automação de Relatórios Assistenciais")
-st.caption("Versão 0.4.3 - Estabilidade Master")
+st.caption("Versão 0.4.3 - Edição Corrigida")
 
 tab_manual, tab_arquivos = st.tabs(["📝 Dados Manuais", "📁 Gestão de Evidências"])
 ctx_manual = {}
@@ -184,15 +184,17 @@ with tab_arquivos:
                     st.markdown(f"<div class='upload-label'>{labels.get(m, m)}</div>", unsafe_allow_html=True)
                     c_act1, c_act2 = st.columns([1, 1.2])
                     with c_act1:
+                        # O componente paste_image_button retorna um objeto PasteResult
                         pasted = paste_image_button(label="Colar print", key=f"p_{m}_{b_idx}")
-                        if pasted:
-                            # Tratamento robusto para extrair bytes da imagem colada
+                        if pasted is not None:
+                            # Acessamos a imagem PIL real através do atributo .image_data
+                            imagem_pil = pasted.image_data
                             buf = io.BytesIO()
-                            pasted.save(buf, format="PNG")
+                            imagem_pil.save(buf, format="PNG")
                             img_bytes = buf.getvalue()
                             nome_p = f"Captura_{len(st.session_state.arquivos_por_marcador[m]) + 1}.png"
                             st.session_state.arquivos_por_marcador[m].append({
-                                "name": nome_p, "content": img_bytes, "preview": img_bytes, "type": "print"
+                                "name": nome_p, "content": imagem_pil, "preview": img_bytes, "type": "print"
                             })
                             st.rerun()
                     with c_act2:
@@ -217,7 +219,7 @@ with tab_arquivos:
 
 if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", use_container_width=True):
     if not ctx_manual.get("SISTEMA_MES_REFERENCIA"):
-        st.error("Mês de Referência é obrigatório.")
+        st.error("O campo 'Mês de Referência' é obrigatório.")
     else:
         try:
             try:
