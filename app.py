@@ -199,11 +199,7 @@ with st.form("form_v4_2"):
                 pasted = paste_image_button(label=f"Colar print", key=f"p_{m}")
                 if pasted:
                     st.session_state.pasted_files[m] = pasted.image_data
-                
-                # Mensagem de confirmação de recebimento do print
-                if m in st.session_state.pasted_files:
-                    st.info("Print recebido.")
-                
+                    
                 tipos = ['png', 'jpg', 'pdf', 'xlsx', 'xls'] if m == "TABELA_TRANSFERENCIA" else ['png', 'jpg', 'pdf']
                 uploads[m] = st.file_uploader("Ou ficheiro", type=tipos, key=f"f_{m}", label_visibility="collapsed")
 
@@ -243,3 +239,4 @@ if btn:
 
 st.markdown("---")
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
