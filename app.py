@@ -9,17 +9,15 @@ import tempfile
 import pandas as pd
 import matplotlib.pyplot as plt
 from streamlit_paste_button import paste_image_button
+from PIL import Image
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
 st.set_page_config(page_title="Gerador de Relatórios V0.4.3", layout="wide")
 
-# --- CUSTOM CSS PARA DESIGN LIMPO E SOMBREADO ---
+# --- CUSTOM CSS ---
 st.markdown("""
     <style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    /* Estilo para os Blocos Sombreados */
+    .main { background-color: #f8f9fa; }
     .dashboard-section {
         background-color: #ffffff;
         padding: 25px;
@@ -34,29 +32,26 @@ st.markdown("""
         margin-bottom: 10px;
         font-size: 1rem;
     }
-    .stButton > button {
-        border-radius: 8px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- DICIONÁRIO DE DIMENSÕES POR CAMPO ---
+# --- DIMENSÕES ---
 DIMENSOES_CAMPOS = {
     "EXCEL_META_ATENDIMENTOS": 165, "IMAGEM_PRINT_ATENDIMENTO": 160,
-    "IMAGEM_DOCUMENTO_RAIO_X": 150, "TABELA_TRANSFERENCIA": 120,
-    "GRAFICO_TRANSFERENCIA": 155, "TABELA_TOTAL_OBITO": 150,
-    "TABELA_OBITO": 150, "TABELA_CCIH": 150, "IMAGEM_NEP": 165,
-    "IMAGEM_TREINAMENTO_INTERNO": 165, "IMAGEM_MELHORIAS": 165,
-    "GRAFICO_OUVIDORIA": 155, "PDF_OUVIDORIA_INTERNA": 165,
-    "TABELA_QUALITATIVA_IMG": 155, "PRINT_CLASSIFICACAO": 155
+    "PRINT_CLASSIFICACAO": 155, "IMAGEM_DOCUMENTO_RAIO_X": 150, 
+    "TABELA_TRANSFERENCIA": 120, "GRAFICO_TRANSFERENCIA": 155,
+    "TABELA_TOTAL_OBITO": 150, "TABELA_OBITO": 150, 
+    "TABELA_CCIH": 150, "TABELA_QUALITATIVA_IMG": 155,
+    "IMAGEM_NEP": 165, "IMAGEM_TREINAMENTO_INTERNO": 165, 
+    "IMAGEM_MELHORIAS": 165, "GRAFICO_OUVIDORIA": 155, 
+    "PDF_OUVIDORIA_INTERNA": 165
 }
 
-# --- INICIALIZAÇÃO DO ESTADO ---
+# --- ESTADO DA SESSÃO ---
 if 'arquivos_por_marcador' not in st.session_state:
     st.session_state.arquivos_por_marcador = {m: [] for m in DIMENSOES_CAMPOS.keys()}
 
 def excel_para_imagem(doc_template, arquivo_excel):
-    """Extrai o intervalo D3:E16 da aba TRANSFERENCIAS."""
     try:
         df = pd.read_excel(arquivo_excel, sheet_name="TRANSFERENCIAS", usecols=[3, 4], skiprows=2, nrows=14, header=None)
         df = df.fillna('')
@@ -94,12 +89,18 @@ def excel_para_imagem(doc_template, arquivo_excel):
 def processar_item(doc_template, item, marcador):
     largura_mm = DIMENSOES_CAMPOS.get(marcador, 165)
     try:
-        if hasattr(item, 'save') and not hasattr(item, 'name'):
-            img_byte_arr = io.BytesIO()
-            item.save(img_byte_arr, format='PNG')
-            img_byte_arr.seek(0)
-            return [InlineImage(doc_template, img_byte_arr, width=Mm(largura_mm))]
+        # Se for bytes (preview armazenado no state para prints colados)
+        if isinstance(item, bytes):
+            return [InlineImage(doc_template, io.BytesIO(item), width=Mm(largura_mm))]
         
+        # Se for imagem PIL direta
+        if isinstance(item, Image.Image):
+            buf = io.BytesIO()
+            item.save(buf, format="PNG")
+            buf.seek(0)
+            return [InlineImage(doc_template, buf, width=Mm(largura_mm))]
+
+        # Se for upload de arquivo
         extensao = getattr(item, 'name', '').lower()
         if marcador == "TABELA_TRANSFERENCIA" and (extensao.endswith(".xlsx") or extensao.endswith(".xls")):
             res = excel_para_imagem(doc_template, item)
@@ -117,7 +118,7 @@ def processar_item(doc_template, item, marcador):
         
         return [InlineImage(doc_template, item, width=Mm(largura_mm))]
     except Exception as e:
-        st.error(f"Erro no item {marcador}: {e}")
+        st.error(f"Erro no marcador {marcador}: {e}")
         return []
 
 def gerar_pdf(docx_path, output_dir):
@@ -127,53 +128,35 @@ def gerar_pdf(docx_path, output_dir):
     except:
         return None
 
-# --- UI PRINCIPAL ---
+# --- UI ---
 st.title("Automação de Relatórios Assistenciais")
-st.caption("Versão 0.4.3 - Edição Gestor")
+st.caption("Versão 0.4.3 - Estabilidade Master")
 
 tab_manual, tab_arquivos = st.tabs(["📝 Dados Manuais", "📁 Gestão de Evidências"])
-contexto_manual = {}
+ctx_manual = {}
 
 with tab_manual:
-    # Seção de Dados Manuais (Mantida Intacta conforme pedido)
     with st.container():
-        st.markdown('<div class="dashboard-card"><div class="card-title">Identificação</div>', unsafe_allow_html=True)
-        contexto_manual["SISTEMA_MES_REFERENCIA"] = st.text_input("Mês de Referência (Ex: Janeiro/2026)")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with st.container():
-        st.markdown('<div class="dashboard-card"><div class="card-title">Produção Geral</div>', unsafe_allow_html=True)
+        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+        ctx_manual["SISTEMA_MES_REFERENCIA"] = st.text_input("Mês de Referência (Ex: Janeiro/2026)")
         c1, c2 = st.columns(2)
-        contexto_manual["ANALISTA_TOTAL_ATENDIMENTOS"] = c1.text_input("Total de Atendimentos")
-        contexto_manual["TOTAL_RAIO_X"] = c2.text_input("Total Raio-X")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with st.container():
-        st.markdown('<div class="dashboard-card"><div class="card-title">Força de Trabalho</div>', unsafe_allow_html=True)
+        ctx_manual["ANALISTA_TOTAL_ATENDIMENTOS"] = c1.text_input("Total de Atendimentos")
+        ctx_manual["TOTAL_RAIO_X"] = c2.text_input("Total Raio-X")
         c3, c4, c5 = st.columns(3)
-        contexto_manual["ANALISTA_MEDICO_CLINICO"] = c3.text_input("Médicos Clínicos")
-        contexto_manual["ANALISTA_MEDICO_PEDIATRA"] = c4.text_input("Médicos Pediatras")
-        contexto_manual["ANALISTA_ODONTO_CLINICO"] = c5.text_input("Odonto Clínico")
-        
-        c6, c7 = st.columns(2)
-        contexto_manual["ANALISTA_ODONTO_PED"] = c6.text_input("Odonto Ped")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with st.container():
-        st.markdown('<div class="dashboard-card"><div class="card-title">Indicadores e Ouvidoria</div>', unsafe_allow_html=True)
-        c8, c9, c10 = st.columns(3)
-        contexto_manual["TOTAL_PACIENTES_CCIH"] = c8.text_input("Pacientes CCIH")
-        contexto_manual["OUVIDORIA_INTERNA"] = c9.text_input("Ouvidoria Interna")
-        contexto_manual["OUVIDORIA_EXTERNA"] = c10.text_input("Ouvidoria Externa")
-        
-        st.write("---")
-        c11, c12 = st.columns(2)
-        contexto_manual["SISTEMA_TOTAL_DE_TRANSFERENCIA"] = c11.number_input("Total de Transferências", step=1, value=0)
-        contexto_manual["SISTEMA_TAXA_DE_TRANSFERENCIA"] = c12.text_input("Taxa de Transferência (%)", value="0,00%")
+        ctx_manual["ANALISTA_MEDICO_CLINICO"] = c3.text_input("Médicos Clínicos")
+        ctx_manual["ANALISTA_MEDICO_PEDIATRA"] = c4.text_input("Médicos Pediatras")
+        ctx_manual["ANALISTA_ODONTO_CLINICO"] = c5.text_input("Odonto Clínico")
+        c6, c7, c8 = st.columns(3)
+        ctx_manual["ANALISTA_ODONTO_PED"] = c6.text_input("Odonto Ped")
+        ctx_manual["TOTAL_PACIENTES_CCIH"] = c7.text_input("Pacientes CCIH")
+        ctx_manual["OUVIDORIA_INTERNA"] = c8.text_input("Ouvidoria Interna")
+        c9, c10, c11 = st.columns(3)
+        ctx_manual["OUVIDORIA_EXTERNA"] = c9.text_input("Ouvidoria Externa")
+        ctx_manual["SISTEMA_TOTAL_DE_TRANSFERENCIA"] = c10.number_input("Total de Transferências", step=1, value=0)
+        ctx_manual["SISTEMA_TAXA_DE_TRANSFERENCIA"] = c11.text_input("Taxa de Transferência (%)", value="0,00%")
         st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_arquivos:
-    # Mapeamento de Rótulos
     labels = {
         "EXCEL_META_ATENDIMENTOS": "Grade de Metas", "IMAGEM_PRINT_ATENDIMENTO": "Prints Atendimento", 
         "PRINT_CLASSIFICACAO": "Classificação de Risco", "IMAGEM_DOCUMENTO_RAIO_X": "Doc. Raio-X", 
@@ -184,8 +167,6 @@ with tab_arquivos:
         "IMAGEM_MELHORIAS": "Melhorias", "GRAFICO_OUVIDORIA": "Gráfico Ouvidoria", 
         "PDF_OUVIDORIA_INTERNA": "Relatório Ouvidoria"
     }
-
-    # Divisão dos campos em blocos (Sem Títulos)
     blocos = [
         ["EXCEL_META_ATENDIMENTOS", "IMAGEM_PRINT_ATENDIMENTO", "PRINT_CLASSIFICACAO", "IMAGEM_DOCUMENTO_RAIO_X"],
         ["TABELA_TRANSFERENCIA", "GRAFICO_TRANSFERENCIA"],
@@ -194,43 +175,37 @@ with tab_arquivos:
     ]
 
     for b_idx, lista_m in enumerate(blocos):
-        # Cada lista_m vira uma seção sombreada branca
         st.markdown('<div class="dashboard-section">', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
-        
         for idx, m in enumerate(lista_m):
             target_col = col1 if idx % 2 == 0 else col2
             with target_col:
                 with st.container(border=True):
                     st.markdown(f"<div class='upload-label'>{labels.get(m, m)}</div>", unsafe_allow_html=True)
-                    
                     c_act1, c_act2 = st.columns([1, 1.2])
                     with c_act1:
                         pasted = paste_image_button(label="Colar print", key=f"p_{m}_{b_idx}")
                         if pasted:
-                            nome_p = f"Captura_{len(st.session_state.arquivos_por_marcador[m]) + 1}"
+                            # Tratamento robusto para extrair bytes da imagem colada
                             buf = io.BytesIO()
                             pasted.save(buf, format="PNG")
+                            img_bytes = buf.getvalue()
+                            nome_p = f"Captura_{len(st.session_state.arquivos_por_marcador[m]) + 1}.png"
                             st.session_state.arquivos_por_marcador[m].append({
-                                "name": nome_p, "content": pasted, "preview": buf.getvalue(), "type": "print"
+                                "name": nome_p, "content": img_bytes, "preview": img_bytes, "type": "print"
                             })
                             st.rerun()
-                    
                     with c_act2:
                         tipo_f = ['png', 'jpg', 'pdf', 'xlsx', 'xls'] if m == "TABELA_TRANSFERENCIA" else ['png', 'jpg', 'pdf']
-                        f_upload = st.file_uploader("Upload", type=tipo_f, key=f"f_{m}_{b_idx}", 
-                                                   accept_multiple_files=True, label_visibility="collapsed")
-                        if f_upload:
-                            for f in f_upload:
+                        f_up = st.file_uploader("Upload", type=tipo_f, key=f"f_{m}_{b_idx}", accept_multiple_files=True, label_visibility="collapsed")
+                        if f_up:
+                            for f in f_up:
                                 if f.name not in [x["name"] for x in st.session_state.arquivos_por_marcador[m]]:
                                     st.session_state.arquivos_por_marcador[m].append({
-                                        "name": f.name, "content": f, 
-                                        "preview": f if not f.name.lower().endswith(('.pdf', '.xlsx', '.xls')) else None, 
-                                        "type": "file"
+                                        "name": f.name, "content": f, "preview": f if not f.name.lower().endswith(('.pdf', '.xlsx', '.xls')) else None, "type": "file"
                                     })
                             st.rerun()
 
-                    # Listagem de itens
                     if st.session_state.arquivos_por_marcador[m]:
                         for i_idx, item in enumerate(st.session_state.arquivos_por_marcador[m]):
                             with st.expander(f"📄 {item['name']}"):
@@ -240,39 +215,36 @@ with tab_arquivos:
                                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- GERAÇÃO FINAL ---
-st.write("---")
 if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", use_container_width=True):
-    if not contexto_manual.get("SISTEMA_MES_REFERENCIA"):
-        st.error("O campo 'Mês de Referência' é obrigatório.")
+    if not ctx_manual.get("SISTEMA_MES_REFERENCIA"):
+        st.error("Mês de Referência é obrigatório.")
     else:
         try:
-            # Cálculo de Médicos Automático
-            mc = int(contexto_manual.get("ANALISTA_MEDICO_CLINICO") or 0)
-            mp = int(contexto_manual.get("ANALISTA_MEDICO_PEDIATRA") or 0)
-            contexto_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
+            try:
+                mc = int(ctx_manual.get("ANALISTA_MEDICO_CLINICO") or 0)
+                mp = int(ctx_manual.get("ANALISTA_MEDICO_PEDIATRA") or 0)
+                ctx_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
+            except:
+                ctx_manual["SISTEMA_TOTAL_MEDICOS"] = 0
 
             with tempfile.TemporaryDirectory() as tmp:
                 docx_path = os.path.join(tmp, "temp.docx")
                 doc = DocxTemplate("template.docx")
-
                 with st.spinner("Gerando documento..."):
-                    dados_finais = contexto_manual.copy()
+                    dados_finais = ctx_manual.copy()
                     for m in DIMENSOES_CAMPOS.keys():
                         imgs = []
                         for item in st.session_state.arquivos_por_marcador[m]:
                             res = processar_item(doc, item['content'], m)
                             if res: imgs.extend(res)
                         dados_finais[m] = imgs
-
                 doc.render(dados_finais)
                 doc.save(docx_path)
                 pdf_res = gerar_pdf(docx_path, tmp)
-                
                 if pdf_res:
                     with open(pdf_res, "rb") as f:
                         st.success("Relatório gerado com sucesso.")
-                        st.download_button("📥 Baixar Relatório PDF", f.read(), f"Relatorio_{contexto_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
+                        st.download_button("📥 Baixar Relatório PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
         except Exception as e:
             st.error(f"Erro Crítico: {e}")
 
