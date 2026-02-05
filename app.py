@@ -81,7 +81,11 @@ def processar_item(doc_template, item, marcador):
     """Processa um único item (arquivo ou print) para inserção no Word."""
     largura_mm = DIMENSOES_CAMPOS.get(marcador, 165)
     try:
-        # Se for imagem colada (objeto PIL Image)
+        # CORREÇÃO: Extração do dado de imagem se for um PasteResult
+        if hasattr(item, 'image_data'):
+            item = item.image_data
+
+        # Se for imagem PIL (tem o método save mas não tem atributo name)
         if hasattr(item, 'save') and not hasattr(item, 'name'):
             img_byte_arr = io.BytesIO()
             item.save(img_byte_arr, format='PNG')
@@ -118,7 +122,7 @@ def gerar_pdf(docx_path, output_dir):
 
 # --- UI PRINCIPAL ---
 st.title("Automação de Relatório de Prestação - UPA Nova Cidade")
-st.caption("Versão 0.4.3 - Gestão Dinâmica de Evidências")
+st.caption("Versão 0.4.3 - Edição Corrigida (Clipboard)")
 
 col_t1 = ["SISTEMA_MES_REFERENCIA", "ANALISTA_TOTAL_ATENDIMENTOS", "ANALISTA_MEDICO_CLINICO", "ANALISTA_MEDICO_PEDIATRA", "ANALISTA_ODONTO_CLINICO"]
 col_t2 = ["ANALISTA_ODONTO_PED", "TOTAL_RAIO_X", "TOTAL_PACIENTES_CCIH", "OUVIDORIA_INTERNA", "OUVIDORIA_EXTERNA"]
@@ -165,9 +169,10 @@ with tab_arq:
             # 1. Colar do Clipboard
             pasted = paste_image_button(label="Colar print", key=f"p_{m}")
             if pasted:
-                # Cria nome amigável para o print
                 nome_print = f"Captura_{len(st.session_state.arquivos_selecionados[m]) + 1}"
-                st.session_state.arquivos_selecionados[m].append({"name": nome_print, "content": pasted, "type": "print"})
+                # Armazenamos o image_data diretamente se for um PasteResult
+                img_data = pasted.image_data if hasattr(pasted, 'image_data') else pasted
+                st.session_state.arquivos_selecionados[m].append({"name": nome_print, "content": img_data, "type": "print"})
                 st.rerun()
 
             # 2. Upload de Arquivo
@@ -183,7 +188,6 @@ with tab_arq:
             if st.session_state.arquivos_selecionados[m]:
                 for idx, item in enumerate(st.session_state.arquivos_selecionados[m]):
                     with st.expander(f"📄 {item['name']}"):
-                        # Preview simples se for imagem
                         if item['type'] == "print" or not item['name'].lower().endswith(('.pdf', '.xlsx', '.xls')):
                             st.image(item['content'], caption=item['name'], use_container_width=True)
                         else:
@@ -200,7 +204,6 @@ if st.button("🚀 GERAR RELATÓRIO PDF FINAL", use_container_width=True):
         st.error("O campo 'Mês de Referência' é obrigatório.")
     else:
         try:
-            # Cálculo de Médicos
             mc = int(ctx.get("ANALISTA_MEDICO_CLINICO") or 0)
             mp = int(ctx.get("ANALISTA_MEDICO_PEDIATRA") or 0)
             ctx["SISTEMA_TOTAL_MEDICOS"] = mc + mp
