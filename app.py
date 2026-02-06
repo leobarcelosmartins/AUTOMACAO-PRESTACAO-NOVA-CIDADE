@@ -112,6 +112,7 @@ def excel_para_imagem(doc_template, arquivo_excel):
         plt.savefig(img_buf, format='png', bbox_inches='tight', dpi=200)
         plt.close(fig)
         img_buf.seek(0)
+        # Largura de 90mm conforme dicionário
         largura_mm = DIMENSOES_CAMPOS.get("TABELA_TRANSFERENCIA", 90)
         return InlineImage(doc_template, img_buf, width=Mm(largura_mm))
     except Exception as e:
@@ -122,7 +123,6 @@ def processar_item(doc_template, item, marcador):
     """Processa um único item (arquivo ou bytes) e retorna InlineImage ou lista de InlineImages."""
     largura_mm = DIMENSOES_CAMPOS.get(marcador, 165)
     try:
-        # Se for imagem PIL ou bytes de print colado
         if isinstance(item, (Image.Image, bytes)):
             buf = io.BytesIO()
             if isinstance(item, bytes):
@@ -215,27 +215,13 @@ with tab_arquivos:
                 with c_btn1:
                     pasted = paste_image_button(label="Colar print", key=f"p_{m}_{b_idx}")
                     if pasted is not None:
-                        # Extração robusta da imagem
-                        img_obj = None
-                        if hasattr(pasted, 'image_data'):
-                            img_obj = pasted.image_data
-                        elif isinstance(pasted, dict) and 'image_data' in pasted:
-                            img_obj = pasted['image_data']
-                        else:
-                            img_obj = pasted
-
+                        imagem_pil = pasted.image_data
                         buf = io.BytesIO()
-                        # Verifica se o objeto extraído tem o método save
-                        if hasattr(img_obj, 'save'):
-                            img_obj.save(buf, format="PNG")
-                            img_bytes = buf.getvalue()
-                        else:
-                            # Se já forem bytes ou outro formato, tenta usar diretamente
-                            img_bytes = img_obj
-                        
+                        imagem_pil.save(buf, format="PNG")
+                        img_bytes = buf.getvalue()
                         nome_p = f"Captura_{len(st.session_state.arquivos_por_marcador[m]) + 1}.png"
                         st.session_state.arquivos_por_marcador[m].append({
-                            "name": nome_p, "content": img_obj, "preview": img_bytes, "type": "print"
+                            "name": nome_p, "content": img_bytes, "preview": img_bytes, "type": "print"
                         })
                         st.rerun()
                 with c_btn2:
