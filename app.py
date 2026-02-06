@@ -8,9 +8,10 @@ import subprocess
 import tempfile
 import pandas as pd
 import matplotlib.pyplot as plt
+from st_paste_button import paste_image_button
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.4.2", layout="wide", page_icon="📑")
+st.set_page_config(page_title="Gerador de Relatórios V0.4.3", layout="wide", page_icon="📑")
 
 # Largura de 130mm para manter a harmonia visual com títulos
 LARGURA_OTIMIZADA = Mm(130)
@@ -18,10 +19,6 @@ LARGURA_OTIMIZADA = Mm(130)
 def excel_para_imagem(doc_template, arquivo_excel):
     """Lê o intervalo D3:E16 da aba TRANSFERENCIAS e converte em imagem."""
     try:
-        # D3:E16 corresponde a:
-        # skiprows=2 (pula linhas 1 e 2)
-        # nrows=14 (da linha 3 até a 16)
-        # usecols="D:E"
         df = pd.read_excel(
             arquivo_excel, 
             sheet_name="TRANSFERENCIAS", 
@@ -31,11 +28,9 @@ def excel_para_imagem(doc_template, arquivo_excel):
             header=None
         )
         
-        # Criar uma figura do matplotlib para renderizar a tabela
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.axis('off')
         
-        # Renderizar a tabela
         tabela = ax.table(
             cellText=df.values, 
             loc='center', 
@@ -46,7 +41,6 @@ def excel_para_imagem(doc_template, arquivo_excel):
         tabela.set_fontsize(10)
         tabela.scale(1.2, 1.5)
         
-        # Salvar em buffer de memória
         img_buf = io.BytesIO()
         plt.savefig(img_buf, format='png', bbox_inches='tight', dpi=150, transparent=True)
         plt.close(fig)
@@ -58,19 +52,27 @@ def excel_para_imagem(doc_template, arquivo_excel):
         return []
 
 def processar_anexo(doc_template, arquivo, marcador):
-    """Detecta o tipo de arquivo e retorna lista de InlineImages."""
+    """Detecta se é arquivo (PDF/Img/Excel) ou imagem colada e retorna InlineImages."""
     if not arquivo:
         return []
     
     imagens = []
     try:
+        # Lógica para imagem vinda do Clipboard (Objeto PIL Image)
+        # Identificamos pois objetos PIL têm o método 'save' mas não têm o atributo 'name'
+        if hasattr(arquivo, 'save') and not hasattr(arquivo, 'name'):
+            img_byte_arr = io.BytesIO()
+            arquivo.save(img_byte_arr, format='PNG')
+            img_byte_arr.seek(0)
+            imagens.append(InlineImage(doc_template, img_byte_arr, width=LARGURA_OTIMIZADA))
+            return imagens
+
+        # Lógica para ficheiros carregados (UploadedFile)
         extensao = arquivo.name.lower()
         
-        # Lógica especial para a Tabela de Transferência em Excel
         if marcador == "TABELA_TRANSFERENCIA" and (extensao.endswith(".xlsx") or extensao.endswith(".xls")):
             return excel_para_imagem(doc_template, arquivo)
             
-        # Lógica padrão para PDF
         if extensao.endswith(".pdf"):
             pdf_stream = arquivo.read()
             pdf_doc = fitz.open(stream=pdf_stream, filetype="pdf")
@@ -79,12 +81,11 @@ def processar_anexo(doc_template, arquivo, marcador):
                 img_byte_arr = io.BytesIO(pix.tobytes())
                 imagens.append(InlineImage(doc_template, img_byte_arr, width=LARGURA_OTIMIZADA))
             pdf_doc.close()
-        # Lógica padrão para Imagens
         else:
             imagens.append(InlineImage(doc_template, arquivo, width=LARGURA_OTIMIZADA))
         return imagens
     except Exception as e:
-        st.error(f"Erro no processamento do arquivo {arquivo.name}: {e}")
+        st.error(f"Erro no processamento do anexo: {e}")
         return []
 
 def gerar_pdf(docx_path, output_dir):
@@ -102,18 +103,22 @@ def gerar_pdf(docx_path, output_dir):
 
 # --- INTERFACE (UI) ---
 st.title("📑 Automação de Relatórios - Backup Tático")
-st.caption("Versão 0.4.2 - Extração Automática de Excel e Layout Otimizado")
+st.caption("Versão 0.4.3 - Suporte para Colar Prints (Clipboard)")
 
-# Estrutura de campos de texto
+# Inicialização do estado para imagens coladas
+if 'pasted_images' not in st.session_state:
+    st.session_state.pasted_images = {}
+
+# Estrutura de campos
 campos_texto_col1 = ["SISTEMA_MES_REFERENCIA", "ANALISTA_TOTAL_ATENDIMENTOS", "ANALISTA_MEDICO_CLINICO", "ANALISTA_MEDICO_PEDIATRA", "ANALISTA_ODONTO_CLINICO"]
 campos_texto_col2 = ["ANALISTA_ODONTO_PED", "TOTAL_RAIO_X", "TOTAL_PACIENTES_CCIH", "OUVIDORIA_INTERNA", "OUVIDORIA_EXTERNA"]
 
 campos_upload = {
-    "EXCEL_META_ATENDIMENTOS": "Grade de Metas (PDF/Img)",
-    "IMAGEM_PRINT_ATENDIMENTO": "Prints Atendimento (PDF/Img)",
-    "IMAGEM_DOCUMENTO_RAIO_X": "Doc. Raio-X (PDF/Img)",
-    "TABELA_TRANSFERENCIA": "Tabela Transferência (EXCEL - Aba: TRANSFERENCIAS, D3:E16)",
-    "GRAFICO_TRANSFERENCIA": "Gráfico Transferência (PDF/Img)",
+    "EXCEL_META_ATENDIMENTOS": "Grade de Metas",
+    "IMAGEM_PRINT_ATENDIMENTO": "Prints Atendimento",
+    "IMAGEM_DOCUMENTO_RAIO_X": "Doc. Raio-X",
+    "TABELA_TRANSFERENCIA": "Tabela Transferência (Excel)",
+    "GRAFICO_TRANSFERENCIA": "Gráfico Transferência",
     "TABELA_TOTAL_OBITO": "Tabela Total Óbito",
     "TABELA_OBITO": "Tabela Óbito",
     "TABELA_CCIH": "Tabela CCIH",
@@ -126,7 +131,7 @@ campos_upload = {
     "PRINT_CLASSIFICACAO": "Classificação de Risco"
 }
 
-with st.form("form_v4_2"):
+with st.form("form_v4_3"):
     tab1, tab2 = st.tabs(["📝 Dados Manuais e Cálculos", "🖼️ Evidências Digitais"])
     contexto = {}
     
@@ -144,11 +149,34 @@ with st.form("form_v4_2"):
         contexto["SISTEMA_TAXA_DE_TRANSFERENCIA"] = c4.text_input("Taxa de Transferência (Ex: 0,76%)", value="0,00%")
 
     with tab2:
+        st.info("💡 Você pode carregar um ficheiro ou colar um print diretamente do clipboard.")
         uploads = {}
         c_up1, c_up2 = st.columns(2)
+        
         for i, (marcador, label) in enumerate(campos_upload.items()):
             col = c_up1 if i % 2 == 0 else c_up2
-            uploads[marcador] = col.file_uploader(label, type=['png', 'jpg', 'pdf', 'xlsx', 'xls'], key=marcador)
+            with col:
+                st.write(f"**{label}**")
+                # Botão de Colar (Clipboard)
+                pasted = paste_image_button(
+                    label=f"📋 Colar para {label}", 
+                    key=f"paste_{marcador}"
+                )
+                if pasted:
+                    st.session_state.pasted_images[marcador] = pasted.image_data
+                
+                # Uploader de Ficheiro (Tradicional)
+                uploads[marcador] = st.file_uploader(
+                    "Ou escolha um ficheiro", 
+                    type=['png', 'jpg', 'pdf', 'xlsx', 'xls'], 
+                    key=f"file_{marcador}",
+                    label_visibility="collapsed"
+                )
+                
+                # Feedback visual se algo foi colado
+                if marcador in st.session_state.pasted_images and not uploads[marcador]:
+                    st.success("✅ Imagem capturada do clipboard.")
+            st.write("---")
 
     btn_gerar = st.form_submit_button("🚀 GERAR RELATÓRIO PDF FINAL")
 
@@ -158,20 +186,22 @@ if btn_gerar:
     else:
         try:
             # Cálculo Automático: Soma de Médicos
-            try:
-                m_clinico = int(contexto.get("ANALISTA_MEDICO_CLINICO", 0) or 0)
-                m_pediatra = int(contexto.get("ANALISTA_MEDICO_PEDIATRA", 0) or 0)
-                contexto["SISTEMA_TOTAL_MEDICOS"] = m_clinico + m_pediatra
-            except:
-                contexto["SISTEMA_TOTAL_MEDICOS"] = "Erro"
+            m_clinico = int(contexto.get("ANALISTA_MEDICO_CLINICO", 0) or 0)
+            m_pediatra = int(contexto.get("ANALISTA_MEDICO_PEDIATRA", 0) or 0)
+            contexto["SISTEMA_TOTAL_MEDICOS"] = m_clinico + m_pediatra
 
             with tempfile.TemporaryDirectory() as pasta_temp:
                 docx_temp = os.path.join(pasta_temp, "relatorio.docx")
                 doc = DocxTemplate("template.docx")
 
-                with st.spinner("Processando arquivos e extraindo dados Excel..."):
-                    for marcador, arquivo in uploads.items():
-                        contexto[marcador] = processar_anexo(doc, arquivo, marcador)
+                with st.spinner("Processando arquivos e capturas de tela..."):
+                    for marcador in campos_upload.keys():
+                        # Prioridade: Ficheiro carregado > Imagem colada
+                        arquivo_final = uploads.get(marcador)
+                        if not arquivo_final:
+                            arquivo_final = st.session_state.pasted_images.get(marcador)
+                        
+                        contexto[marcador] = processar_anexo(doc, arquivo_final, marcador)
 
                 doc.render(contexto)
                 doc.save(docx_temp)
