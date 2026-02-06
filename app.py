@@ -182,7 +182,7 @@ with tab2:
             # Indicador discreto de conteúdo presente
             if marcador in st.session_state.pasted_images and not uploads[marcador]:
                 st.caption(" ")
-        st.write("---")
+        st.write(" ")
 
 # Botão de Gerar Relatório (Agora um st.button normal)
 if st.button("🚀 GERAR RELATÓRIO PDF FINAL", use_container_width=True):
@@ -223,4 +223,5 @@ if st.button("🚀 GERAR RELATÓRIO PDF FINAL", use_container_width=True):
 
 st.markdown("---")
 st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
+
 
