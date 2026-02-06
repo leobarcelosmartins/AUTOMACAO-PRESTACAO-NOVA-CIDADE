@@ -59,7 +59,6 @@ def processar_anexo(doc_template, arquivo, marcador):
     imagens = []
     try:
         # Lógica para imagem vinda do Clipboard (Objeto PIL Image)
-        # Identificamos pois objetos PIL têm o método 'save' mas não têm o atributo 'name'
         if hasattr(arquivo, 'save') and not hasattr(arquivo, 'name'):
             img_byte_arr = io.BytesIO()
             arquivo.save(img_byte_arr, format='PNG')
@@ -103,7 +102,7 @@ def gerar_pdf(docx_path, output_dir):
 
 # --- INTERFACE (UI) ---
 st.title("📑 Automação de Relatórios - Backup Tático")
-st.caption("Versão 0.4.3 - Suporte para Colar Prints (Clipboard)")
+st.caption("Versão 0.4.3 - Ajuste de UX no Clipboard")
 
 # Inicialização do estado para imagens coladas
 if 'pasted_images' not in st.session_state:
@@ -157,13 +156,18 @@ with st.form("form_v4_3"):
             col = c_up1 if i % 2 == 0 else c_up2
             with col:
                 st.write(f"**{label}**")
+                
                 # Botão de Colar (Clipboard)
                 pasted = paste_image_button(
                     label=f"📋 Colar para {label}", 
                     key=f"paste_{marcador}"
                 )
-                if pasted:
+                
+                # Lógica de anexo com feedback transitório (Toast)
+                if pasted and pasted.image_data:
                     st.session_state.pasted_images[marcador] = pasted.image_data
+                    # O toast aparece no canto e some sozinho, resolvendo o problema da persistência
+                    st.toast(f"✅ Print anexado em: {label}")
                 
                 # Uploader de Ficheiro (Tradicional)
                 uploads[marcador] = st.file_uploader(
@@ -173,9 +177,9 @@ with st.form("form_v4_3"):
                     label_visibility="collapsed"
                 )
                 
-                # Feedback visual se algo foi colado
+                # Indicador visual discreto de estado
                 if marcador in st.session_state.pasted_images and not uploads[marcador]:
-                    st.success("✅ Imagem capturada do clipboard.")
+                    st.caption("📎 *Imagem capturada do clipboard*")
             st.write("---")
 
     btn_gerar = st.form_submit_button("🚀 GERAR RELATÓRIO PDF FINAL")
@@ -211,6 +215,7 @@ if btn_gerar:
                     
                     if pdf_final and os.path.exists(pdf_final):
                         with open(pdf_final, "rb") as f:
+                            st.success("Relatório gerado com sucesso.")
                             nome_arquivo = f"Relatorio_{contexto['SISTEMA_MES_REFERENCIA'].replace('/', '-')}.pdf"
                             st.download_button("📥 Baixar Relatório PDF", f.read(), nome_arquivo, "application/pdf")
                     else:
