@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import pandas as pd
 import matplotlib.pyplot as plt
-from st_paste_button import paste_image_button
+from streamlit_paste_button import paste_image_button
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
 st.set_page_config(page_title="Gerador de Relatórios V0.4.3", layout="wide", page_icon="📑")
@@ -222,3 +222,4 @@ if btn_gerar:
                         st.error("Falha na conversão para PDF.")
         except Exception as e:
             st.error(f"Erro Crítico: {e}")
+
