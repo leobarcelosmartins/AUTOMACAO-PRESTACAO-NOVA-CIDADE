@@ -104,7 +104,7 @@ def processar_item_lista(doc_template, item, marcador):
 
 # --- UI ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.5.3 - Isolamento Estrito de Campos")
+st.caption("Versão 0.5.3 - CORRIGIDA")
 
 t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
 ctx_manual = {}
@@ -244,4 +244,5 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
         except Exception as e: st.error(f"Erro Crítico: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
+
 
