@@ -12,7 +12,7 @@ from streamlit_paste_button import paste_image_button
 from PIL import Image
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.5.3", layout="wide")
+st.set_page_config(page_title="Gerador de Relatórios V0.5.4", layout="wide")
 
 # --- CUSTOM CSS ---
 st.markdown("""
@@ -52,7 +52,6 @@ DIMENSOES_CAMPOS = {
 if 'dados_sessao' not in st.session_state:
     st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
 
-# Rastreador de tempo para cada botão para saber quando um NOVO print foi colado
 if 'ultimo_print_time' not in st.session_state:
     st.session_state.ultimo_print_time = {m: 0 for m in DIMENSOES_CAMPOS.keys()}
 
@@ -104,7 +103,7 @@ def processar_item_lista(doc_template, item, marcador):
 
 # --- UI ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.5.3 - CORRIGIDA")
+st.caption("Versão 0.5.4 - Correção de Fluxo e Validação")
 
 t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
 ctx_manual = {}
@@ -155,13 +154,9 @@ with t_evidencia:
                 st.markdown(f"<span class='upload-label'>{labels.get(marcador, marcador)}</span>", unsafe_allow_html=True)
                 ca, cb = st.columns([1, 1])
                 with ca:
-                    # Captura do clipboard com chave única
                     pasted = paste_image_button(label="Colar Print", key=f"p_btn_{marcador}")
-                    
                     if pasted is not None and hasattr(pasted, 'image_data'):
                         current_paste_time = getattr(pasted, 'time_now', 0)
-                        
-                        # SOLUÇÃO DEFINITIVA: Só processa se o timestamp deste marcador específico mudou
                         if current_paste_time > st.session_state.ultimo_print_time[marcador]:
                             img_pil = pasted.image_data
                             if img_pil is not None:
@@ -170,13 +165,9 @@ with t_evidencia:
                                     img_pil.save(buf, format="PNG")
                                     b_data = buf.getvalue()
                                     nome = f"Captura_{len(st.session_state.dados_sessao[marcador]) + 1}.png"
-                                    
-                                    # Adiciona apenas à lista deste marcador
                                     st.session_state.dados_sessao[marcador].append({"name": nome, "content": b_data, "type": "p"})
-                                    # Atualiza o timestamp para este marcador
                                     st.session_state.ultimo_print_time[marcador] = current_paste_time
-                                    
-                                    st.toast(f"✅ Salvo em: {labels[marcador]}")
+                                    st.toast(f"✅ Print salvo em: {labels[marcador]}")
                                     st.rerun()
                                 except: pass
 
@@ -187,8 +178,8 @@ with t_evidencia:
                             st.session_state.dados_sessao[marcador].append({"name": f_up.name, "content": f_up, "type": "f"})
                             st.rerun()
 
-                # Exibição estritamente isolada por marcador
-                if st.session_state.dados_sessao[marcador]:
+                # EXIBIÇÃO DA LISTA (Sempre visível se houver dados)
+                if marcador in st.session_state.dados_sessao and st.session_state.dados_sessao[marcador]:
                     for i_idx, item in enumerate(st.session_state.dados_sessao[marcador]):
                         with st.expander(f"📄 {item['name']}", expanded=False):
                             if item['type'] == "p" or not item['name'].lower().endswith(('.pdf', '.xlsx')):
@@ -199,33 +190,36 @@ with t_evidencia:
         st.markdown('</div>', unsafe_allow_html=True)
 
 if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_container_width=True):
-    if not ctx_manual.get("in_mes"):
-        st.error("Mês de Referência é obrigatório.")
+    # Validação corrigida para usar o valor da sessão
+    mes_ref = st.session_state.get("in_mes", "")
+    if not mes_ref:
+        st.error("O campo 'Mês de Referência' é obrigatório.")
     else:
         try:
             # Cálculo de Médicos
-            mc = int(ctx_manual.get("in_mc") or 0)
-            mp = int(ctx_manual.get("in_mp") or 0)
-            ctx_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
+            mc = int(st.session_state.get("in_mc", 0) or 0)
+            mp = int(st.session_state.get("in_mp", 0) or 0)
+            total_medicos = mc + mp
 
             with tempfile.TemporaryDirectory() as tmp:
                 docx_p = os.path.join(tmp, "relatorio.docx")
                 doc = DocxTemplate("template.docx")
                 with st.spinner("Construindo relatório..."):
+                    # Mapeamento final garantido
                     dados_finais = {
-                       "SISTEMA_MES_REFERENCIA": ctx_manual.get("SISTEMA_MES_REFERENCIA"),
-                        "ANALISTA_TOTAL_ATENDIMENTOS": ctx_manual.get("ANALISTA_TOTAL_ATENDIMENTOS"),
-                        "ANALISTA_MEDICO_CLINICO": ctx_manual.get("ANALISTA_MEDICO_CLINICO"),
-                        "ANALISTA_MEDICO_PEDIATRA": ctx_manual.get("ANALISTA_MEDICO_PEDIATRA"),
-                        "ANALISTA_ODONTO_CLINICO": ctx_manual.get("ANALISTA_ODONTO_CLINICO"),
-                        "ANALISTA_ODONTO_PED": ctx_manual.get("ANALISTA_ODONTO_PED"),
-                        "TOTAL_RAIO_X": ctx_manual.get("TOTAL_RAIO_X"),
-                        "TOTAL_PACIENTES_CCIH": ctx_manual.get("TOTAL_PACIENTES_CCIH"),
-                        "OUVIDORIA_INTERNA": ctx_manual.get("OUVIDORIA_INTERNA"),
-                        "OUVIDORIA_EXTERNA": ctx_manual.get("OUVIDORIA_EXTERNA"),
-                        "SISTEMA_TOTAL_DE_TRANSFERENCIA": ctx_manual.get("SISTEMA_TOTAL_DE_TRANSFERENCIA"),
-                        "SISTEMA_TAXA_DE_TRANSFERENCIA": ctx_manual.get("SISTEMA_TAXA_DE_TRANSFERENCIA"),
-                        "SISTEMA_TOTAL_MEDICOS": ctx_manual.get("SISTEMA_TOTAL_MEDICOS")
+                        "SISTEMA_MES_REFERENCIA": mes_ref,
+                        "ANALISTA_TOTAL_ATENDIMENTOS": st.session_state.get("in_total", ""),
+                        "ANALISTA_MEDICO_CLINICO": st.session_state.get("in_mc", ""),
+                        "ANALISTA_MEDICO_PEDIATRA": st.session_state.get("in_mp", ""),
+                        "ANALISTA_ODONTO_CLINICO": st.session_state.get("in_oc", ""),
+                        "ANALISTA_ODONTO_PED": st.session_state.get("in_op", ""),
+                        "TOTAL_RAIO_X": st.session_state.get("in_rx", ""),
+                        "TOTAL_PACIENTES_CCIH": st.session_state.get("in_ccih", ""),
+                        "OUVIDORIA_INTERNA": st.session_state.get("in_oi", ""),
+                        "OUVIDORIA_EXTERNA": st.session_state.get("in_oe", ""),
+                        "SISTEMA_TOTAL_DE_TRANSFERENCIA": st.session_state.get("in_tt", 0),
+                        "SISTEMA_TAXA_DE_TRANSFERENCIA": st.session_state.get("in_taxa", "0,00%"),
+                        "SISTEMA_TOTAL_MEDICOS": total_medicos
                     }
                     for m in DIMENSOES_CAMPOS.keys():
                         imgs = []
@@ -233,6 +227,7 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                             res = processar_item_lista(doc, item['content'], m)
                             if res: imgs.extend(res)
                         dados_finais[m] = imgs
+                    
                     doc.render(dados_finais)
                     doc.save(docx_p)
                     subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmp, docx_p], check=True)
@@ -240,9 +235,7 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                     if os.path.exists(pdf_final):
                         with open(pdf_final, "rb") as f:
                             st.success("Relatório gerado!")
-                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
+                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{mes_ref.replace('/', '-')}.pdf", "application/pdf")
         except Exception as e: st.error(f"Erro Crítico: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
-
-
