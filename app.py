@@ -12,7 +12,7 @@ from streamlit_paste_button import paste_image_button
 from PIL import Image
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.5.6", layout="wide")
+st.set_page_config(page_title="Gerador de Relatórios V0.5.7", layout="wide")
 
 # --- CUSTOM CSS PARA DASHBOARD ---
 st.markdown("""
@@ -52,7 +52,7 @@ DIMENSOES_CAMPOS = {
 if 'dados_sessao' not in st.session_state:
     st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
 
-# CORREÇÃO 1: Rastreador de tempo individual por campo para evitar duplicação/vazamento
+# Rastreador de tempo individual por campo para evitar duplicação/vazamento
 if 'ultimo_print_time' not in st.session_state:
     st.session_state.ultimo_print_time = {m: 0 for m in DIMENSOES_CAMPOS.keys()}
 
@@ -104,24 +104,27 @@ def processar_item_lista(doc_template, item, marcador):
 
 # --- UI ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.5.6 - Correção Cirúrgica de Sincronismo")
+st.caption("Versão 0.5.7 - Layout Restaurado e Sincronismo Corrigido")
 
 t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
 
 with t_manual:
     st.markdown("### Preencha os campos de texto")
+    # Restaurando exatamente o layout da V0.5.1
     c1, c2 = st.columns(2)
-    # Atribuímos keys para garantir que os dados fiquem no st.session_state
     st.text_input("Mês de Referência", key="in_mes")
     st.text_input("Total de Atendimentos", key="in_total")
+    
     c3, c4, c5 = st.columns(3)
     st.text_input("Médicos Clínicos", key="in_mc")
     st.text_input("Médicos Pediatras", key="in_mp")
     st.text_input("Odonto Clínico", key="in_oc")
+    
     c6, c7, c8 = st.columns(3)
     st.text_input("Odonto Ped", key="in_op")
     st.text_input("Pacientes CCIH", key="in_ccih")
     st.text_input("Ouvidoria Interna", key="in_oi")
+    
     c9, c10, c11 = st.columns(3)
     st.text_input("Ouvidoria Externa", key="in_oe")
     st.number_input("Total de Transferências", step=1, key="in_tt")
@@ -157,12 +160,11 @@ with t_evidencia:
                 with ca:
                     pasted = paste_image_button(label="Colar Print", key=f"p_{m}_{b_idx}")
                     
-                    # CORREÇÃO 2: Verificação de Unicidade e Isolamento de Campo
                     if pasted is not None:
                         img_pil = getattr(pasted, 'image_data', None)
                         p_time = getattr(pasted, 'time_now', 0)
                         
-                        # Só processa se houver imagem E se o horário desta colagem for NOVO para este marcador (m)
+                        # CORREÇÃO DEFINITIVA: Só processa se o horário desta colagem for NOVO para este marcador (m)
                         if img_pil is not None and p_time > st.session_state.ultimo_print_time.get(m, 0):
                             try:
                                 buf = io.BytesIO()
@@ -171,7 +173,6 @@ with t_evidencia:
                                 nome = f"Captura_{len(st.session_state.dados_sessao[m]) + 1}.png"
                                 st.session_state.dados_sessao[m].append({"name": nome, "content": b_data, "type": "p"})
                                 
-                                # Atualiza o tempo para este marcador específico para travar repetições
                                 st.session_state.ultimo_print_time[m] = p_time
                                 st.toast(f"✅ Print anexado em: {labels[m]}")
                                 st.rerun()
@@ -195,7 +196,7 @@ with t_evidencia:
         st.markdown('</div>', unsafe_allow_html=True)
 
 if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_container_width=True):
-    # Recuperação dos dados via session_state (mais estável)
+    # Recuperação dos dados via session_state para garantir persistência após reruns
     mes_ref = st.session_state.get("in_mes", "").strip()
     
     if not mes_ref:
@@ -211,7 +212,6 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                 docx_p = os.path.join(tmp, "relatorio.docx")
                 doc = DocxTemplate("template.docx")
                 with st.spinner("Construindo relatório..."):
-                    # Mapeamento para o template
                     dados_finais = {
                         "SISTEMA_MES_REFERENCIA": mes_ref,
                         "ANALISTA_TOTAL_ATENDIMENTOS": st.session_state.get("in_total", ""),
