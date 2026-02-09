@@ -10,11 +10,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from streamlit_paste_button import paste_image_button
 from PIL import Image
-
+import time
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.5.1", layout="wide")
-
+st.set_page_config(page_title="Gerador de Relatórios V0.5.2", layout="wide")
 
 # --- CUSTOM CSS PARA DASHBOARD ---
 st.markdown("""
@@ -39,7 +38,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-
 # --- DICIONÁRIO DE DIMENSÕES ---
 DIMENSOES_CAMPOS = {
     "EXCEL_META_ATENDIMENTOS": 165, "IMAGEM_PRINT_ATENDIMENTO": 165,
@@ -51,11 +49,12 @@ DIMENSOES_CAMPOS = {
     "TABELA_QUALITATIVA_IMG": 170, "PRINT_CLASSIFICACAO": 160
 }
 
-
 # --- ESTADO DA SESSÃO ---
 if 'dados_sessao' not in st.session_state:
     st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
-
+# Rastreador de IDs processados para evitar duplicidade e contaminação entre campos
+if 'ids_processados' not in st.session_state:
+    st.session_state.ids_processados = set()
 
 def excel_para_imagem(doc_template, arquivo_excel):
     try:
@@ -83,7 +82,6 @@ def excel_para_imagem(doc_template, arquivo_excel):
         st.error(f"Erro Excel: {e}")
         return None
 
-
 def processar_item_lista(doc_template, item, marcador):
     largura = DIMENSOES_CAMPOS.get(marcador, 165)
     try:
@@ -104,15 +102,12 @@ def processar_item_lista(doc_template, item, marcador):
         return [InlineImage(doc_template, item, width=Mm(largura))]
     except Exception: return []
 
-
 # --- UI ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.5.2 - Correção Download Button")
-
+st.caption("Versão 0.5.2 - Correção de Sincronismo de Campos")
 
 t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
 ctx_manual = {}
-
 
 with t_manual:
     st.markdown("### Preencha os campos de texto")
@@ -131,7 +126,6 @@ with t_manual:
     ctx_manual["OUVIDORIA_EXTERNA"] = c9.text_input("Ouvidoria Externa", key="in_oe")
     ctx_manual["SISTEMA_TOTAL_DE_TRANSFERENCIA"] = c10.number_input("Total de Transferências", step=1, key="in_tt")
     ctx_manual["SISTEMA_TAXA_DE_TRANSFERENCIA"] = c11.text_input("Taxa de Transferência (%)", key="in_taxa")
-
 
 with t_evidencia:
     labels = {
@@ -152,7 +146,6 @@ with t_evidencia:
         ["IMAGEM_NEP", "IMAGEM_TREINAMENTO_INTERNO", "IMAGEM_MELHORIAS", "GRAFICO_OUVIDORIA", "PDF_OUVIDORIA_INTERNA"]
     ]
 
-
     for b_idx, lista_m in enumerate(blocos):
         st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
         col_esq, col_dir = st.columns(2)
@@ -162,53 +155,57 @@ with t_evidencia:
                 st.markdown(f"<span class='upload-label'>{labels.get(m, m)}</span>", unsafe_allow_html=True)
                 ca, cb = st.columns([1, 1])
                 with ca:
-                    # BLINDAGEM: Captura o objeto mas NÃO faz nada se for None
-                    pasted = paste_image_button(label="Colar Print", key=f"p_{m}_{b_idx}")
+                    # Chave única por marcador para evitar conflito de estado
+                    pasted = paste_image_button(label="Colar Print", key=f"p_btn_{m}")
                     
-                    if pasted is not None:
-                        # SUPER CHECK: Verifica se tem o atributo e se não é nulo
-                        img_pil = getattr(pasted, 'image_data', None)
-                        if img_pil is not None:
-                            try:
-                                buf = io.BytesIO()
-                                img_pil.save(buf, format="PNG")
-                                b_data = buf.getvalue()
-                                nome = f"Captura_{len(st.session_state.dados_sessao[m]) + 1}.png"
-                                st.session_state.dados_sessao[m].append({"name": nome, "content": b_data, "type": "p"})
-                                st.rerun()
-                            except: pass # Falha silenciosa para evitar crash
-
+                    if pasted is not None and hasattr(pasted, 'image_data'):
+                        # Gerar um ID único baseado no conteúdo ou tempo para este botão específico
+                        # A biblioteca costuma ter um timestamp ou podemos usar o id(pasted)
+                        p_id = f"{m}_{pasted.time_now}" if hasattr(pasted, 'time_now') else f"{m}_{id(pasted)}"
+                        
+                        # SÓ PROCESSA SE O ID FOR NOVO
+                        if p_id not in st.session_state.ids_processados:
+                            img_pil = pasted.image_data
+                            if img_pil is not None:
+                                try:
+                                    buf = io.BytesIO()
+                                    img_pil.save(buf, format="PNG")
+                                    b_data = buf.getvalue()
+                                    nome = f"Captura_{len(st.session_state.dados_sessao[m]) + 1}.png"
+                                    st.session_state.dados_sessao[m].append({"name": nome, "content": b_data, "type": "p"})
+                                    # Marca este ID como processado para que no rerun ele não adicione de novo
+                                    st.session_state.ids_processados.add(p_id)
+                                    st.toast(f"✅ Print salvo em {labels[m]}")
+                                    st.rerun()
+                                except: pass
 
                 with cb:
-                    f_up = st.file_uploader("Upload", type=['png', 'jpg', 'pdf', 'xlsx'], key=f"f_{m}_{b_idx}", label_visibility="collapsed")
+                    f_up = st.file_uploader("Upload", type=['png', 'jpg', 'pdf', 'xlsx'], key=f"f_up_{m}", label_visibility="collapsed")
                     if f_up:
                         if f_up.name not in [x['name'] for x in st.session_state.dados_sessao[m]]:
                             st.session_state.dados_sessao[m].append({"name": f_up.name, "content": f_up, "type": "f"})
                             st.rerun()
 
-
+                # EXIBIÇÃO DA LISTA ESPECÍFICA DO MARCADOR
                 if st.session_state.dados_sessao[m]:
                     for i_idx, item in enumerate(st.session_state.dados_sessao[m]):
                         with st.expander(f"📄 {item['name']}", expanded=False):
                             if item['type'] == "p" or not item['name'].lower().endswith(('.pdf', '.xlsx')):
                                 st.image(item['content'], use_container_width=True)
-                            if st.button("Remover", key=f"del_{m}_{i_idx}_{b_idx}"):
+                            if st.button("Remover", key=f"del_{m}_{i_idx}"):
                                 st.session_state.dados_sessao[m].pop(i_idx)
                                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
 
 if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_container_width=True):
     if not ctx_manual.get("SISTEMA_MES_REFERENCIA"):
         st.error("Mês de Referência é obrigatório.")
     else:
         try:
-            try:
-                mc = int(ctx_manual.get("ANALISTA_MEDICO_CLINICO") or 0)
-                mp = int(ctx_manual.get("ANALISTA_MEDICO_PEDIATRA") or 0)
-                ctx_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
-            except: ctx_manual["SISTEMA_TOTAL_MEDICOS"] = 0
-
+            # Cálculo de Médicos
+            mc = int(ctx_manual.get("ANALISTA_MEDICO_CLINICO") or 0)
+            mp = int(ctx_manual.get("ANALISTA_MEDICO_PEDIATRA") or 0)
+            ctx_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
 
             with tempfile.TemporaryDirectory() as tmp:
                 docx_p = os.path.join(tmp, "relatorio.docx")
@@ -239,24 +236,10 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                     doc.save(docx_p)
                     subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmp, docx_p], check=True)
                     pdf_final = os.path.join(tmp, "relatorio.pdf")
-                    
                     if os.path.exists(pdf_final):
-                        # ✅ CORREÇÃO: Ler o arquivo ANTES do download_button
                         with open(pdf_final, "rb") as f:
-                            pdf_bytes = f.read()  # Armazenar em variável
-                        
-                        st.success("Relatório gerado!")
-                        nome_arquivo = f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf"
-                        st.download_button(
-                            "📥 Descarregar PDF", 
-                            pdf_bytes,  # ✅ Usar a variável, não f.read()
-                            nome_arquivo, 
-                            "application/pdf"
-                        )
-                    else:
-                        st.error("Falha na conversão para PDF.")
-        except Exception as e: 
-            st.error(f"Erro Crítico: {e}")
+                            st.success("Relatório gerado!")
+                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
+        except Exception as e: st.error(f"Erro Crítico: {e}")
 
-
-st.caption("Desenvolvido por Leonardo Barcelos Martins | V0.5.2")
+st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
