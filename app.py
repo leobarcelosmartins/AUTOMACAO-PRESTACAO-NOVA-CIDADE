@@ -213,18 +213,18 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                 doc = DocxTemplate("template.docx")
                 with st.spinner("Construindo relatório..."):
                     dados_finais = {
-                        "SISTEMA_MES_REFERENCIA": ctx_manual.get("in_mes"),
-                        "ANALISTA_TOTAL_ATENDIMENTOS": ctx_manual.get("in_total"),
-                        "ANALISTA_MEDICO_CLINICO": ctx_manual.get("in_mc"),
-                        "ANALISTA_MEDICO_PEDIATRA": ctx_manual.get("in_mp"),
-                        "ANALISTA_ODONTO_CLINICO": ctx_manual.get("in_oc"),
-                        "ANALISTA_ODONTO_PED": ctx_manual.get("in_op"),
-                        "TOTAL_RAIO_X": ctx_manual.get("in_rx"),
-                        "TOTAL_PACIENTES_CCIH": ctx_manual.get("in_ccih"),
-                        "OUVIDORIA_INTERNA": ctx_manual.get("in_oi"),
-                        "OUVIDORIA_EXTERNA": ctx_manual.get("in_oe"),
-                        "SISTEMA_TOTAL_DE_TRANSFERENCIA": ctx_manual.get("in_tt"),
-                        "SISTEMA_TAXA_DE_TRANSFERENCIA": ctx_manual.get("in_taxa"),
+                       "SISTEMA_MES_REFERENCIA": ctx_manual.get("SISTEMA_MES_REFERENCIA"),
+                        "ANALISTA_TOTAL_ATENDIMENTOS": ctx_manual.get("ANALISTA_TOTAL_ATENDIMENTOS"),
+                        "ANALISTA_MEDICO_CLINICO": ctx_manual.get("ANALISTA_MEDICO_CLINICO"),
+                        "ANALISTA_MEDICO_PEDIATRA": ctx_manual.get("ANALISTA_MEDICO_PEDIATRA"),
+                        "ANALISTA_ODONTO_CLINICO": ctx_manual.get("ANALISTA_ODONTO_CLINICO"),
+                        "ANALISTA_ODONTO_PED": ctx_manual.get("ANALISTA_ODONTO_PED"),
+                        "TOTAL_RAIO_X": ctx_manual.get("TOTAL_RAIO_X"),
+                        "TOTAL_PACIENTES_CCIH": ctx_manual.get("TOTAL_PACIENTES_CCIH"),
+                        "OUVIDORIA_INTERNA": ctx_manual.get("OUVIDORIA_INTERNA"),
+                        "OUVIDORIA_EXTERNA": ctx_manual.get("OUVIDORIA_EXTERNA"),
+                        "SISTEMA_TOTAL_DE_TRANSFERENCIA": ctx_manual.get("SISTEMA_TOTAL_DE_TRANSFERENCIA"),
+                        "SISTEMA_TAXA_DE_TRANSFERENCIA": ctx_manual.get("SISTEMA_TAXA_DE_TRANSFERENCIA"),
                         "SISTEMA_TOTAL_MEDICOS": ctx_manual.get("SISTEMA_TOTAL_MEDICOS")
                     }
                     for m in DIMENSOES_CAMPOS.keys():
@@ -240,7 +240,8 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                     if os.path.exists(pdf_final):
                         with open(pdf_final, "rb") as f:
                             st.success("Relatório gerado!")
-                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['in_mes']}.pdf", "application/pdf")
+                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
         except Exception as e: st.error(f"Erro Crítico: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
+
