@@ -12,7 +12,7 @@ from streamlit_paste_button import paste_image_button
 from PIL import Image
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.6.3", layout="wide")
+st.set_page_config(page_title="Gerador de Relatórios V0.6.4", layout="wide")
 
 # --- CUSTOM CSS PARA DASHBOARD ---
 st.markdown("""
@@ -42,7 +42,7 @@ DIMENSOES_CAMPOS = {
     "EXCEL_META_ATENDIMENTOS": 165, "IMAGEM_PRINT_ATENDIMENTO": 165,
     "IMAGEM_DOCUMENTO_RAIO_X": 165, "TABELA_TRANSFERENCIA": 90,
     "GRAFICO_TRANSFERENCIA": 160, "TABELA_TOTAL_OBITO": 165,
-    "TABELA_OBITO": 180, "TABELA_CCIH": 180, "IMAGEM_NEP": 160,
+    "TABELA_OBITO": 180, "TABELA_CCIH": 180, "IMAGEM_NEP": 180,
     "IMAGEM_TREINAMENTO_INTERNO": 180, "IMAGEM_MELHORIAS": 180,
     "GRAFICO_OUVIDORIA": 155, "PDF_OUVIDORIA_INTERNA": 165,
     "TABELA_QUALITATIVA_IMG": 170, "PRINT_CLASSIFICACAO": 160
@@ -102,14 +102,13 @@ def processar_item_lista(doc_template, item, marcador):
 
 # --- UI ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.6.3 - Fix de Listagem e Layout de Dados")
+st.caption("Versão 0.6.4 - Suporte para Download em Word (.docx)")
 
-t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Arquivos"])
+t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
 ctx_manual = {}
 
 with t_manual:
     st.markdown("### Preencha os campos de texto")
-    # Restaurando layout exato (2 colunas, depois 3 colunas por linha)
     c1, c2 = st.columns(2)
     ctx_manual["SISTEMA_MES_REFERENCIA"] = c1.text_input("Mês de Referência", key="in_mes")
     ctx_manual["ANALISTA_TOTAL_ATENDIMENTOS"] = c2.text_input("Total de Atendimentos", key="in_total")
@@ -137,8 +136,8 @@ with t_evidencia:
         "TABELA_TOTAL_OBITO": "Tab. Total Óbito", "TABELA_OBITO": "Tab. Óbito", 
         "TABELA_CCIH": "Tabela CCIH", "TABELA_QUALITATIVA_IMG": "Tab. Qualitativa",
         "IMAGEM_NEP": "Imagens NEP", "IMAGEM_TREINAMENTO_INTERNO": "Treinamento Interno", 
-        "IMAGEM_MELHORIAS": "Melhorias", "GRAFICO_OUVIDORIA": "Relatório Ouvidoria", 
-        "PDF_OUVIDORIA_INTERNA": "Tabelas Ouvidoria"
+        "IMAGEM_MELHORIAS": "Melhorias", "GRAFICO_OUVIDORIA": "Gráfico Ouvidoria", 
+        "PDF_OUVIDORIA_INTERNA": "Relatório Ouvidoria"
     }
     
     blocos = [
@@ -157,7 +156,6 @@ with t_evidencia:
                 st.markdown(f"<span class='upload-label'>{labels.get(m, m)}</span>", unsafe_allow_html=True)
                 ca, cb = st.columns([1, 1])
                 with ca:
-                    # TRUQUE DA CHAVE DINÂMICA: A chave muda conforme a lista cresce, resetando o componente
                     key_p = f"p_{m}_{len(st.session_state.dados_sessao[m])}"
                     pasted = paste_image_button(label="Colar Print", key=key_p)
                     
@@ -179,7 +177,6 @@ with t_evidencia:
                             st.session_state.dados_sessao[m].append({"name": f_up.name, "content": f_up, "type": "f"})
                             st.rerun()
 
-                # LISTAGEM (A parte responsável por mostrar os arquivos anexados)
                 if st.session_state.dados_sessao[m]:
                     for i_idx, item in enumerate(st.session_state.dados_sessao[m]):
                         with st.expander(f"📄 {item['name']}", expanded=False):
@@ -190,7 +187,7 @@ with t_evidencia:
                                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_container_width=True):
+if st.button("🚀 FINALIZAR E GERAR RELATÓRIO", type="primary", use_container_width=True):
     if not ctx_manual.get("SISTEMA_MES_REFERENCIA"):
         st.error("Mês de Referência é obrigatório.")
     else:
@@ -203,8 +200,8 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
             with tempfile.TemporaryDirectory() as tmp:
                 docx_p = os.path.join(tmp, "relatorio.docx")
                 doc = DocxTemplate("template.docx")
-                with st.spinner("Injetando dados e prints no relatório..."):
-                    # INCLUSÃO NO RELATÓRIO: Popula o contexto com as InlineImages
+                with st.spinner("Processando dados e gerando arquivos..."):
+                    # Popula o contexto com as InlineImages
                     for m in DIMENSOES_CAMPOS.keys():
                         imgs_doc = []
                         for item in st.session_state.dados_sessao[m]:
@@ -212,16 +209,39 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                             if res: imgs_doc.extend(res)
                         ctx_manual[m] = imgs_doc
                     
+                    # Renderiza e salva o DOCX
                     doc.render(ctx_manual)
                     doc.save(docx_p)
-                    subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmp, docx_p], check=True)
-                    pdf_final = os.path.join(tmp, "relatorio.pdf")
-                    if os.path.exists(pdf_final):
-                        with open(pdf_final, "rb") as f:
-                            st.success("Relatório gerado!")
-                            st.download_button("Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
+                    
+                    # Interface de Download
+                    st.success("✅ Arquivos gerados com sucesso!")
+                    
+                    col_down1, col_down2 = st.columns(2)
+                    
+                    with col_down1:
+                        # Opção de baixar em WORD
+                        with open(docx_p, "rb") as f_word:
+                            st.download_button(
+                                label="📥 Baixar em WORD (.docx)",
+                                data=f_word.read(),
+                                file_name=f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.docx",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                use_container_width=True
+                            )
+                    
+                    with col_down2:
+                        # Conversão e opção de baixar em PDF
+                        subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmp, docx_p], check=True)
+                        pdf_final = os.path.join(tmp, "relatorio.pdf")
+                        if os.path.exists(pdf_final):
+                            with open(pdf_final, "rb") as f_pdf:
+                                st.download_button(
+                                    label="📥 Baixar em PDF",
+                                    data=f_pdf.read(),
+                                    file_name=f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf",
+                                    mime="application/pdf",
+                                    use_container_width=True
+                                )
         except Exception as e: st.error(f"Erro Crítico: {e}")
 
-st.caption("Desenvolvido por Leonardo Barcelos Martins")
-
-
+st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
