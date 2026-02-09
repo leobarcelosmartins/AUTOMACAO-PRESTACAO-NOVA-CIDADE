@@ -123,7 +123,7 @@ def converter_para_pdf(docx_path, output_dir):
 st.title("Automação de Relatórios - UPA Nova Cidade")
 st.caption("Versão 0.6.7 - Ajuste de Layout e Campo Raio-X")
 
-t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
+t_manual, t_evidencia = st.tabs(["Dados", "Evidências"])
 ctx_manual = {}
 
 with t_manual:
@@ -203,7 +203,7 @@ with t_evidencia:
                 # Lógica de Listagem restaurada conforme V0.6.4
                 if st.session_state.dados_sessao[m]:
                     for i_idx, item in enumerate(st.session_state.dados_sessao[m]):
-                        with st.expander(f"📄 {item['name']}", expanded=False):
+                        with st.expander(f"{item['name']}", expanded=False):
                             if item['type'] == "p" or not item['name'].lower().endswith(('.pdf', '.xlsx')):
                                 st.image(item['content'], use_container_width=True)
                             if st.button("Remover", key=f"del_{m}_{i_idx}_{b_idx}"):
@@ -211,7 +211,7 @@ with t_evidencia:
                                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-if st.button("🚀 FINALIZAR E GERAR RELATÓRIO", type="primary", use_container_width=True):
+if st.button("FINALIZAR E GERAR RELATÓRIO", type="primary", use_container_width=True):
     if not ctx_manual.get("SISTEMA_MES_REFERENCIA"):
         st.error("Mês de Referência é obrigatório.")
     else:
@@ -241,7 +241,7 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO", type="primary", use_container_
                     with c_down1:
                         with open(docx_p, "rb") as f_w:
                             st.download_button(
-                                label="📥 Baixar WORD (.docx)",
+                                label="Baixar WORD (.docx)",
                                 data=f_w.read(),
                                 file_name=f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.docx",
                                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -255,7 +255,7 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO", type="primary", use_container_
                             if os.path.exists(pdf_p):
                                 with open(pdf_p, "rb") as f_p:
                                     st.download_button(
-                                        label="📥 Baixar PDF",
+                                        label="Baixar PDF",
                                         data=f_p.read(),
                                         file_name=f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf",
                                         mime="application/pdf",
@@ -266,3 +266,4 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO", type="primary", use_container_
         except Exception as e: st.error(f"Erro Crítico: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
+
