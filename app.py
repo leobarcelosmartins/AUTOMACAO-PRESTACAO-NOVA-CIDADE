@@ -104,7 +104,7 @@ def processar_item_lista(doc_template, item, marcador):
 st.title("Automação de Relatórios - UPA Nova Cidade")
 st.caption("Versão 0.6.3 - Fix de Listagem e Layout de Dados")
 
-t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
+t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Arquivos"])
 ctx_manual = {}
 
 with t_manual:
@@ -219,7 +219,8 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                     if os.path.exists(pdf_final):
                         with open(pdf_final, "rb") as f:
                             st.success("Relatório gerado!")
-                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
+                            st.download_button("Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
         except Exception as e: st.error(f"Erro Crítico: {e}")
 
-st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
+st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
