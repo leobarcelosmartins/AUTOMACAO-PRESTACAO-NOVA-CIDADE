@@ -10,12 +10,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from streamlit_paste_button import paste_image_button
 from PIL import Image
-import time
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.5.2", layout="wide")
+st.set_page_config(page_title="Gerador de Relatórios V0.5.3", layout="wide")
 
-# --- CUSTOM CSS PARA DASHBOARD ---
+# --- CUSTOM CSS ---
 st.markdown("""
     <style>
     .main { background-color: #f0f2f5; }
@@ -52,9 +51,10 @@ DIMENSOES_CAMPOS = {
 # --- ESTADO DA SESSÃO ---
 if 'dados_sessao' not in st.session_state:
     st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
-# Rastreador de IDs processados para evitar duplicidade e contaminação entre campos
-if 'ids_processados' not in st.session_state:
-    st.session_state.ids_processados = set()
+
+# Rastreador de tempo para cada botão para saber quando um NOVO print foi colado
+if 'ultimo_print_time' not in st.session_state:
+    st.session_state.ultimo_print_time = {m: 0 for m in DIMENSOES_CAMPOS.keys()}
 
 def excel_para_imagem(doc_template, arquivo_excel):
     try:
@@ -104,7 +104,7 @@ def processar_item_lista(doc_template, item, marcador):
 
 # --- UI ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.5.2 - Correção de Sincronismo de Campos")
+st.caption("Versão 0.5.3 - Isolamento Estrito de Campos")
 
 t_manual, t_evidencia = st.tabs(["📝 Dados", "📁 Evidências"])
 ctx_manual = {}
@@ -149,62 +149,63 @@ with t_evidencia:
     for b_idx, lista_m in enumerate(blocos):
         st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
         col_esq, col_dir = st.columns(2)
-        for idx, m in enumerate(lista_m):
+        for idx, marcador in enumerate(lista_m):
             target = col_esq if idx % 2 == 0 else col_dir
             with target:
-                st.markdown(f"<span class='upload-label'>{labels.get(m, m)}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span class='upload-label'>{labels.get(marcador, marcador)}</span>", unsafe_allow_html=True)
                 ca, cb = st.columns([1, 1])
                 with ca:
-                    # Chave única por marcador para evitar conflito de estado
-                    pasted = paste_image_button(label="Colar Print", key=f"p_btn_{m}")
+                    # Captura do clipboard com chave única
+                    pasted = paste_image_button(label="Colar Print", key=f"p_btn_{marcador}")
                     
                     if pasted is not None and hasattr(pasted, 'image_data'):
-                        # Gerar um ID único baseado no conteúdo ou tempo para este botão específico
-                        # A biblioteca costuma ter um timestamp ou podemos usar o id(pasted)
-                        p_id = f"{m}_{pasted.time_now}" if hasattr(pasted, 'time_now') else f"{m}_{id(pasted)}"
+                        current_paste_time = getattr(pasted, 'time_now', 0)
                         
-                        # SÓ PROCESSA SE O ID FOR NOVO
-                        if p_id not in st.session_state.ids_processados:
+                        # SOLUÇÃO DEFINITIVA: Só processa se o timestamp deste marcador específico mudou
+                        if current_paste_time > st.session_state.ultimo_print_time[marcador]:
                             img_pil = pasted.image_data
                             if img_pil is not None:
                                 try:
                                     buf = io.BytesIO()
                                     img_pil.save(buf, format="PNG")
                                     b_data = buf.getvalue()
-                                    nome = f"Captura_{len(st.session_state.dados_sessao[m]) + 1}.png"
-                                    st.session_state.dados_sessao[m].append({"name": nome, "content": b_data, "type": "p"})
-                                    # Marca este ID como processado para que no rerun ele não adicione de novo
-                                    st.session_state.ids_processados.add(p_id)
-                                    st.toast(f"✅ Print salvo em {labels[m]}")
+                                    nome = f"Captura_{len(st.session_state.dados_sessao[marcador]) + 1}.png"
+                                    
+                                    # Adiciona apenas à lista deste marcador
+                                    st.session_state.dados_sessao[marcador].append({"name": nome, "content": b_data, "type": "p"})
+                                    # Atualiza o timestamp para este marcador
+                                    st.session_state.ultimo_print_time[marcador] = current_paste_time
+                                    
+                                    st.toast(f"✅ Salvo em: {labels[marcador]}")
                                     st.rerun()
                                 except: pass
 
                 with cb:
-                    f_up = st.file_uploader("Upload", type=['png', 'jpg', 'pdf', 'xlsx'], key=f"f_up_{m}", label_visibility="collapsed")
+                    f_up = st.file_uploader("Upload", type=['png', 'jpg', 'pdf', 'xlsx'], key=f"f_up_{marcador}", label_visibility="collapsed")
                     if f_up:
-                        if f_up.name not in [x['name'] for x in st.session_state.dados_sessao[m]]:
-                            st.session_state.dados_sessao[m].append({"name": f_up.name, "content": f_up, "type": "f"})
+                        if f_up.name not in [x['name'] for x in st.session_state.dados_sessao[marcador]]:
+                            st.session_state.dados_sessao[marcador].append({"name": f_up.name, "content": f_up, "type": "f"})
                             st.rerun()
 
-                # EXIBIÇÃO DA LISTA ESPECÍFICA DO MARCADOR
-                if st.session_state.dados_sessao[m]:
-                    for i_idx, item in enumerate(st.session_state.dados_sessao[m]):
+                # Exibição estritamente isolada por marcador
+                if st.session_state.dados_sessao[marcador]:
+                    for i_idx, item in enumerate(st.session_state.dados_sessao[marcador]):
                         with st.expander(f"📄 {item['name']}", expanded=False):
                             if item['type'] == "p" or not item['name'].lower().endswith(('.pdf', '.xlsx')):
                                 st.image(item['content'], use_container_width=True)
-                            if st.button("Remover", key=f"del_{m}_{i_idx}"):
-                                st.session_state.dados_sessao[m].pop(i_idx)
+                            if st.button("Remover", key=f"del_{marcador}_{i_idx}"):
+                                st.session_state.dados_sessao[marcador].pop(i_idx)
                                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
 if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_container_width=True):
-    if not ctx_manual.get("SISTEMA_MES_REFERENCIA"):
+    if not ctx_manual.get("in_mes"):
         st.error("Mês de Referência é obrigatório.")
     else:
         try:
             # Cálculo de Médicos
-            mc = int(ctx_manual.get("ANALISTA_MEDICO_CLINICO") or 0)
-            mp = int(ctx_manual.get("ANALISTA_MEDICO_PEDIATRA") or 0)
+            mc = int(ctx_manual.get("in_mc") or 0)
+            mp = int(ctx_manual.get("in_mp") or 0)
             ctx_manual["SISTEMA_TOTAL_MEDICOS"] = mc + mp
 
             with tempfile.TemporaryDirectory() as tmp:
@@ -212,18 +213,18 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                 doc = DocxTemplate("template.docx")
                 with st.spinner("Construindo relatório..."):
                     dados_finais = {
-                        "SISTEMA_MES_REFERENCIA": ctx_manual.get("SISTEMA_MES_REFERENCIA"),
-                        "ANALISTA_TOTAL_ATENDIMENTOS": ctx_manual.get("ANALISTA_TOTAL_ATENDIMENTOS"),
-                        "ANALISTA_MEDICO_CLINICO": ctx_manual.get("ANALISTA_MEDICO_CLINICO"),
-                        "ANALISTA_MEDICO_PEDIATRA": ctx_manual.get("ANALISTA_MEDICO_PEDIATRA"),
-                        "ANALISTA_ODONTO_CLINICO": ctx_manual.get("ANALISTA_ODONTO_CLINICO"),
-                        "ANALISTA_ODONTO_PED": ctx_manual.get("ANALISTA_ODONTO_PED"),
-                        "TOTAL_RAIO_X": ctx_manual.get("TOTAL_RAIO_X"),
-                        "TOTAL_PACIENTES_CCIH": ctx_manual.get("TOTAL_PACIENTES_CCIH"),
-                        "OUVIDORIA_INTERNA": ctx_manual.get("OUVIDORIA_INTERNA"),
-                        "OUVIDORIA_EXTERNA": ctx_manual.get("OUVIDORIA_EXTERNA"),
-                        "SISTEMA_TOTAL_DE_TRANSFERENCIA": ctx_manual.get("SISTEMA_TOTAL_DE_TRANSFERENCIA"),
-                        "SISTEMA_TAXA_DE_TRANSFERENCIA": ctx_manual.get("SISTEMA_TAXA_DE_TRANSFERENCIA"),
+                        "SISTEMA_MES_REFERENCIA": ctx_manual.get("in_mes"),
+                        "ANALISTA_TOTAL_ATENDIMENTOS": ctx_manual.get("in_total"),
+                        "ANALISTA_MEDICO_CLINICO": ctx_manual.get("in_mc"),
+                        "ANALISTA_MEDICO_PEDIATRA": ctx_manual.get("in_mp"),
+                        "ANALISTA_ODONTO_CLINICO": ctx_manual.get("in_oc"),
+                        "ANALISTA_ODONTO_PED": ctx_manual.get("in_op"),
+                        "TOTAL_RAIO_X": ctx_manual.get("in_rx"),
+                        "TOTAL_PACIENTES_CCIH": ctx_manual.get("in_ccih"),
+                        "OUVIDORIA_INTERNA": ctx_manual.get("in_oi"),
+                        "OUVIDORIA_EXTERNA": ctx_manual.get("in_oe"),
+                        "SISTEMA_TOTAL_DE_TRANSFERENCIA": ctx_manual.get("in_tt"),
+                        "SISTEMA_TAXA_DE_TRANSFERENCIA": ctx_manual.get("in_taxa"),
                         "SISTEMA_TOTAL_MEDICOS": ctx_manual.get("SISTEMA_TOTAL_MEDICOS")
                     }
                     for m in DIMENSOES_CAMPOS.keys():
@@ -239,7 +240,7 @@ if st.button("🚀 FINALIZAR E GERAR RELATÓRIO PDF", type="primary", use_contai
                     if os.path.exists(pdf_final):
                         with open(pdf_final, "rb") as f:
                             st.success("Relatório gerado!")
-                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['SISTEMA_MES_REFERENCIA']}.pdf", "application/pdf")
+                            st.download_button("📥 Descarregar PDF", f.read(), f"Relatorio_{ctx_manual['in_mes']}.pdf", "application/pdf")
         except Exception as e: st.error(f"Erro Crítico: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins | Backup Tático")
