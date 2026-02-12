@@ -56,7 +56,7 @@ st.markdown("""
 DIMENSOES_CAMPOS = {
     "IMAGEM_PRINT_ATENDIMENTO": 165, "PRINT_CLASSIFICACAO": 160,
     "IMAGEM_DOCUMENTO_RAIO_X": 165, "TABELA_TRANSFERENCIA": 90,
-    "GRAFICO_TRANSFERENCIA": 160, "TABELA_OBITO": 160, 
+    "GRAFICO_TRANSFERENCIA": 160, "TABELA_OBITO": 180, 
     "TABELA_CCIH": 160, "IMAGEM_NEP": 160,
     "IMAGEM_TREINAMENTO_INTERNO": 160, "IMAGEM_MELHORIAS": 160,
     "GRAFICO_OUVIDORIA": 155, "PDF_OUVIDORIA_INTERNA": 165,
@@ -70,13 +70,13 @@ if 'dados_sessao' not in st.session_state:
 # --- SIDEBAR (Corrigido para manter Título e Métricas) ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/3208/3208726.png", width=100)
-    st.title("Painel de Controle")
+    st.title("Painel de Controlo")
     st.markdown("---")
     
     total_anexos = sum(len(v) for v in st.session_state.dados_sessao.values())
     st.metric("Total de Anexos", total_anexos)
     
-    if st.button("🗑️ Limpar Todos os Dados", width='stretch'):
+    if st.button("🗑 Limpar Todos os Dados", width='stretch'):
         st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
         st.rerun()
     
@@ -148,13 +148,13 @@ def processar_item_lista(doc_template, item, marcador):
         return []
 
 # --- UI PRINCIPAL ---
-st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.7.12 ")
+st.title("Automação de Relatórios - UPA Pacheco")
+st.caption("Versão 0.7.12")
 
 t_manual, t_evidencia = st.tabs(["Dados", "Evidências"])
 
 with t_manual:
-    st.markdown("### Configuração do Período e Metas")
+    st.markdown("###Configuração do Período e Metas")
     
     c1, c2, c3 = st.columns(3)
     meses_pt = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -177,7 +177,7 @@ with t_manual:
     with c6: st.text_input("Meta +25% (Calculada)", value=str(meta_max), disabled=True)
 
     st.markdown("---")
-    st.markdown("### Dados Assistenciais")
+    st.markdown("###Dados Assistenciais")
 
     c7, c8, c9 = st.columns(3)
     with c7: st.text_input("Total Raio-X", key="in_rx")
@@ -244,7 +244,7 @@ with t_evidencia:
 
                 if st.session_state.dados_sessao[m]:
                     for i_idx, item in enumerate(st.session_state.dados_sessao[m]):
-                        with st.expander(f"📄 {item['name']}", expanded=False):
+                        with st.expander(f"{item['name']}", expanded=False):
                             is_image = item['type'] == "p" or item['name'].lower().endswith(('.png', '.jpg', '.jpeg'))
                             if is_image:
                                 st.image(item['content'], width='stretch')
@@ -257,7 +257,7 @@ with t_evidencia:
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- GERAÇÃO FINAL ---
-if st.button("FINALIZAR E GERAR RELATÓRIO", type="primary", width='stretch'):
+if st.button("🚀 FINALIZAR E GERAR RELATÓRIO", type="primary", width='stretch'):
     try:
         progress_bar = st.progress(0)
         with tempfile.TemporaryDirectory() as tmp:
@@ -317,8 +317,3 @@ if st.button("FINALIZAR E GERAR RELATÓRIO", type="primary", width='stretch'):
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
 
     
-
-
-
-
-
