@@ -149,7 +149,7 @@ def processar_item_lista(doc_template, item, marcador):
 
 # --- UI PRINCIPAL ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
-st.caption("Versão 0.7.12 - Ajuste de Menu Lateral e Layout")
+st.caption("Versão 0.7.12")
 
 t_manual, t_evidencia = st.tabs(["Dados", "Evidências"])
 
@@ -317,5 +317,6 @@ if st.button("FINALIZAR E GERAR RELATÓRIO", type="primary", width='stretch'):
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
 
     
+
 
 
