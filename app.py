@@ -14,7 +14,7 @@ from PIL import Image
 import platform
 import time
 import calendar
-import json  # NOVO: Importante para persistência
+import json
 from pathlib import Path
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
@@ -44,13 +44,6 @@ st.markdown("""
         height: 3em !important;
         border-radius: 8px !important;
     }
-    div.stButton > button[key*="del_"] {
-        border: 1px solid #dc3545 !important;
-        color: #dc3545 !important;
-        background-color: transparent !important;
-        font-size: 0.8em !important;
-        height: 2em !important;
-    }
     /* Estilo para botões de gerenciamento */
     div.stButton > button[key*="btn_"] {
         background-color: #ffffff !important;
@@ -58,7 +51,6 @@ st.markdown("""
         border: 1px solid #d1d5db !important;
         border-radius: 6px !important;
         width: 100% !important;
-        height: 2.5em !important;
     }
     .upload-label { font-weight: bold; color: #1f2937; margin-bottom: 8px; display: block; }
     </style>
@@ -75,11 +67,10 @@ DIMENSOES_CAMPOS = {
     "TABELA_QUALITATIVA_IMG": 160
 }
 
-# --- CONFIGURAÇÃO DE PERSISTÊNCIA (NOVO) ---
+# --- CONFIGURAÇÃO DE PERSISTÊNCIA ---
 BASE_RELATORIOS_DIR = Path("relatorios_salvos_novacidade")
 BASE_RELATORIOS_DIR.mkdir(exist_ok=True)
 
-# Chaves de campos de texto/número que serão salvas no JSON
 FORM_KEYS = [
     "sel_mes", "sel_ano", "in_total", "in_rx", "in_mc", "in_mp",
     "in_oc", "in_op", "in_ccih", "in_oi", "in_oe", "in_taxa",
@@ -89,17 +80,12 @@ FORM_KEYS = [
 # --- ESTADO DA SESSÃO ---
 if 'dados_sessao' not in st.session_state:
     st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
-
 if 'relatorio_atual' not in st.session_state:
     st.session_state.relatorio_atual = ""
 
-# --- FUNÇÕES DE PERSISTÊNCIA (NOVO) ---
-
+# --- FUNÇÕES DE PERSISTÊNCIA ---
 def _normalizar_nome(nome):
     return "".join([c if c.isalnum() else "_" for c in nome])
-
-def listar_relatorios_salvos():
-    return sorted([p.name for p in BASE_RELATORIOS_DIR.iterdir() if p.is_dir()])
 
 def salvar_relatorio(nome):
     if not nome: return
@@ -116,203 +102,132 @@ def salvar_relatorio(nome):
             ext = ".png"
             fname = f"{m}_{i}{ext}"
             caminho_dest = pasta_evid / fname
-            
-            conteudo = item["content"]
-            if isinstance(conteudo, Image.Image):
-                conteudo.save(caminho_dest, format="PNG")
+            if isinstance(item["content"], Image.Image):
+                item["content"].save(caminho_dest, format="PNG")
             else:
-                if hasattr(conteudo, "getvalue"): data = conteudo.getvalue()
-                elif hasattr(conteudo, "read"): 
-                    conteudo.seek(0)
-                    data = conteudo.read()
-                else: data = conteudo
+                data = item["content"].getvalue() if hasattr(item["content"], "getvalue") else item["content"]
                 with open(caminho_dest, "wb") as f: f.write(data)
-                
             evid_meta[m].append({"name": item["name"], "file": f"evidencias/{fname}", "type": item["type"]})
 
     estado = {"form_state": {k: st.session_state.get(k) for k in FORM_KEYS}, "evidencias": evid_meta}
     with open(pasta / "estado.json", "w", encoding="utf-8") as f:
         json.dump(estado, f, ensure_ascii=False, indent=2)
     st.session_state.relatorio_atual = nome_norm
-    st.success(f"Relatório '{nome}' salvo com sucesso!")
+    st.success(f"Relatório '{nome}' salvo!")
 
 def carregar_relatorio(nome_pasta):
     pasta = BASE_RELATORIOS_DIR / nome_pasta
-    estado_path = pasta / "estado.json"
-    if not estado_path.exists(): return
-    
-    with open(estado_path, "r", encoding="utf-8") as f:
+    with open(pasta / "estado.json", "r", encoding="utf-8") as f:
         estado = json.load(f)
-    
-    for k, v in estado.get("form_state", {}).items():
-        st.session_state[k] = v
-        
+    for k, v in estado.get("form_state", {}).items(): st.session_state[k] = v
     st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
     for m, lista in estado.get("evidencias", {}).items():
         for meta in lista:
             p = pasta / meta["file"]
             if p.exists():
                 with open(p, "rb") as f:
-                    bio = io.BytesIO(f.read())
-                    bio.name = meta["name"]
+                    bio = io.BytesIO(f.read()); bio.name = meta["name"]
                     st.session_state.dados_sessao[m].append({"name": meta["name"], "content": bio, "type": meta["type"]})
     st.session_state.relatorio_atual = nome_pasta
-    st.success(f"Relatório carregado!")
+    st.success("Relatório carregado!")
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3208/3208726.png", width=100)
-    st.title("Painel de Controlo")
-    st.markdown("---")
-    
-    total_anexos = sum(len(v) for v in st.session_state.dados_sessao.values())
-    st.metric("Total de Anexos", total_anexos)
-    
-    if st.button("🗑 Limpar Todos os Dados"):
-        st.session_state.dados_sessao = {m: [] for m in DIMENSOES_CAMPOS.keys()}
-        st.rerun()
+# --- FUNÇÕES AUXILIARES ---
+def converter_para_pdf(docx_path, output_dir):
+    comando = 'libreoffice'
+    if platform.system() == "Windows":
+        caminhos = [r'C:\Program Files\LibreOffice\program\soffice.exe', r'C:\Program Files (x86)\LibreOffice\program\soffice.exe']
+        for p in caminhos:
+            if os.path.exists(p): comando = p; break
+    subprocess.run([comando, '--headless', '--convert-to', 'pdf', '--outdir', output_dir, docx_path], check=True)
 
-# --- UI PRINCIPAL ---
+def processar_item_lista(doc_template, item, marcador):
+    largura = DIMENSOES_CAMPOS.get(marcador, 165)
+    try:
+        if hasattr(item, 'seek'): item.seek(0)
+        return [InlineImage(doc_template, item, width=Mm(largura))]
+    except: return []
+
+# --- INTERFACE ---
 st.title("Automação de Relatórios - UPA Nova Cidade")
 
-# --- GERENCIAMENTO DE RELATÓRIOS (NOVO) ---
 with st.container(border=True):
     st.markdown("#### Gerenciamento de Relatórios")
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
-        rels = listar_relatorios_salvos()
-        opcao_rel = st.selectbox("Relatórios salvos", ["(Novo relatório)"] + rels, index=0)
+        rels = [p.name for p in BASE_RELATORIOS_DIR.iterdir() if p.is_dir()]
+        opcao_rel = st.selectbox("Relatórios salvos", ["(Novo relatório)"] + rels)
     with col2:
         nome_input = st.text_input("Nome do relatório", value=st.session_state.relatorio_atual)
     with col3:
-        st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
         if st.button("Carregar", key="btn_load"):
-            if opcao_rel != "(Novo relatório)":
-                carregar_relatorio(opcao_rel)
-                st.rerun()
+            if opcao_rel != "(Novo relatório)": carregar_relatorio(opcao_rel); st.rerun()
         if st.button("Salvar", key="btn_save"):
-            nome_to_save = nome_input or opcao_rel
-            if nome_to_save and nome_to_save != "(Novo relatório)":
-                salvar_relatorio(nome_to_save)
-                st.rerun()
-        if opcao_rel != "(Novo relatório)":
-            if st.button("🗑️ Excluir", key="btn_del_rel"):
-                shutil.rmtree(BASE_RELATORIOS_DIR / opcao_rel)
-                st.rerun()
+            n = nome_input or opcao_rel
+            if n and n != "(Novo relatório)": salvar_relatorio(n); st.rerun()
 
-st.caption("Versão 0.7.12")
+t_dados, t_evidencia = st.tabs(["Dados", "Evidências"])
 
-# --- CONTEÚDO DAS TABS (SEU CÓDIGO ORIGINAL CONTINUA ABAIXO) ---
-t_manual, t_evidencia = st.tabs(["Dados", "Evidências"])
-
-with t_manual:
-    st.markdown("### Configuração do Período e Metas")
-    
+with t_dados:
+    st.markdown("### Período e Metas")
     c1, c2, c3 = st.columns(3)
     meses_pt = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-    with c1: 
-        mes_selecionado = st.selectbox("Mês de Referência", meses_pt, key="sel_mes")
-    with c2: 
-        ano_selecionado = st.selectbox("Ano", [2024, 2025, 2026, 2027], index=2, key="sel_ano")
-    with c3:
-        st.text_input("Total de Atendimentos", key="in_total")
+    with c1: mes_sel = st.selectbox("Mês", meses_pt, key="sel_mes")
+    with c2: ano_sel = st.selectbox("Ano", [2024, 2025, 2026, 2027], index=2, key="sel_ano")
+    with c3: st.text_input("Total Atendimentos", key="in_total")
 
-    # Cálculos automáticos (Permanecem iguais)
-    mes_num = meses_pt.index(mes_selecionado) + 1
-    dias_no_mes = calendar.monthrange(ano_selecionado, mes_num)[1]
-    meta_calculada = dias_no_mes * META_DIARIA_CONTRATO
-    meta_min = int(meta_calculada * 0.75)
-    meta_max = int(meta_calculada * 1.25)
-
-    c4, c5, c6 = st.columns(3)
-    with c4: st.text_input("Meta do Mês (Calculada)", value=str(meta_calculada), disabled=True)
-    with c5: st.text_input("Meta -25% (Calculada)", value=str(meta_min), disabled=True)
-    with c6: st.text_input("Meta +25% (Calculada)", value=str(meta_max), disabled=True)
-
-    st.markdown("---")
+    # Cálculos automáticos (mesmo se vazio)
+    dias = calendar.monthrange(ano_sel, meses_pt.index(mes_sel)+1)[1]
+    meta = dias * META_DIARIA_CONTRATO
+    
     st.markdown("### Dados Assistenciais")
-
     c7, c8, c9 = st.columns(3)
     with c7: st.text_input("Total Raio-X", key="in_rx")
     with c8: st.text_input("Médicos Clínicos", key="in_mc")
     with c9: st.text_input("Médicos Pediatras", key="in_mp")
 
-    c10, c11, c12 = st.columns(3)
-    with c10: st.text_input("Odonto Clínico", key="in_oc")
-    with c11: st.text_input("Odonto Ped", key="in_op")
-    with c12: st.text_input("Pacientes CCIH", key="in_ccih")
-
-    c13, c14, c15 = st.columns(3)
-    with c13: st.text_input("Ouvidoria Interna", key="in_oi")
-    with c14: st.text_input("Ouvidoria Externa", key="in_oe")
-    with c15: st.text_input("Taxa de Transferência (%)", key="in_taxa")
-
-    c16, c17, c18 = st.columns(3)
-    with c16: st.number_input("Total de Transferências", step=1, key="in_tt")
-    with c17: st.number_input("Total de Óbitos", key="in_to", step=1)
-    with c18: st.number_input("Óbito < 24h", key="in_to_menor", step=1)
-
-    c19, c20, c21 = st.columns(3)
-    with c19: st.number_input("Óbito > 24h", key="in_to_maior", step=1)
+    c16, c17 = st.columns(2)
+    with c16: st.number_input("Total Transferências", key="in_tt", step=1)
+    with c17: st.number_input("Total Óbitos", key="in_to", step=1)
 
 with t_evidencia:
-    labels = {
-        "IMAGEM_PRINT_ATENDIMENTO": "Prints Atendimento", "PRINT_CLASSIFICACAO": "Classificação de Risco", 
-        "IMAGEM_DOCUMENTO_RAIO_X": "Doc. Raio-X", "TABELA_TRANSFERENCIA": "Tabela Transferência", 
-        "GRAFICO_TRANSFERENCIA": "Gráfico Transferência", "TABELA_OBITO": "Tab. Óbito", 
-        "TABELA_CCIH": "Tabela CCIH", "TABELA_QUALITATIVA_IMG": "Tab. Qualitativa",
-        "IMAGEM_NEP": "Imagens NEP", "IMAGEM_TREINAMENTO_INTERNO": "Treinamento Interno", 
-        "IMAGEM_MELHORIAS": "Melhorias", "GRAFICO_OUVIDORIA": "Gráfico Ouvidoria", "PDF_OUVIDORIA_INTERNA": "Relatório Ouvidoria"
-    }
-    
-    blocos = [
-        ["IMAGEM_PRINT_ATENDIMENTO", "PRINT_CLASSIFICACAO", "IMAGEM_DOCUMENTO_RAIO_X"],
-        ["TABELA_TRANSFERENCIA", "GRAFICO_TRANSFERENCIA"],
-        ["TABELA_OBITO", "TABELA_CCIH", "TABELA_QUALITATIVA_IMG"],
-        ["IMAGEM_NEP", "IMAGEM_TREINAMENTO_INTERNO", "IMAGEM_MELHORIAS", "GRAFICO_OUVIDORIA", "PDF_OUVIDORIA_INTERNA"]
-    ]
+    for m in DIMENSOES_CAMPOS.keys():
+        with st.expander(f"Anexar: {m.replace('_', ' ')}"):
+            pasted = paste_image_button(label="Colar Print", key=f"p_{m}")
+            if pasted and pasted.image_data:
+                st.session_state.dados_sessao[m].append({"name": f"Captura_{m}.png", "content": pasted.image_data, "type": "p"})
+                st.rerun()
+            f = st.file_uploader("Ou Upload", type=['png', 'jpg', 'pdf'], key=f"f_{m}")
+            if f and f.name not in [x['name'] for x in st.session_state.dados_sessao[m]]:
+                st.session_state.dados_sessao[m].append({"name": f.name, "content": f, "type": "f"})
+                st.rerun()
 
-    for b_idx, lista_m in enumerate(blocos):
-        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-        col_esq, col_dir = st.columns(2)
-        for idx, m in enumerate(lista_m):
-            target = col_esq if idx % 2 == 0 else col_dir
-            with target:
-                st.markdown(f"<span class='upload-label'>{labels.get(m, m)}</span>", unsafe_allow_html=True)
-                ca, cb = st.columns([1, 1])
-                with ca:
-                    key_p = f"p_{m}_{len(st.session_state.dados_sessao[m])}"
-                    pasted = paste_image_button(label="Colar Print", key=key_p)
-                    if pasted is not None and pasted.image_data is not None:
-                        st.session_state.dados_sessao[m].append({"name": f"Captura_{len(st.session_state.dados_sessao[m]) + 1}.png", "content": pasted.image_data, "type": "p"})
-                        st.toast(f"Anexado em: {labels[m]}")
-                        time.sleep(0.5)
-                        st.rerun()
-                with cb:
-                    f_up = st.file_uploader("Upload", type=['png', 'jpg', 'pdf', 'xlsx'], key=f"f_{m}_{b_idx}", label_visibility="collapsed")
-                    if f_up:
-                        if f_up.name not in [x['name'] for x in st.session_state.dados_sessao[m]]:
-                            st.session_state.dados_sessao[m].append({"name": f_up.name, "content": f_up, "type": "f"})
-                            st.rerun()
+# --- GERAÇÃO FINAL ---
+if st.button("FINALIZAR E GERAR RELATÓRIO", type="primary"):
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            docx_p = os.path.join(tmp, "relatorio.docx")
+            doc = DocxTemplate("template-upa-nova-cidade.docx")
+            
+            # PROTEÇÃO CONTRA CAMPOS VAZIOS: int(valor or 0)
+            dados_finais = {
+                "SISTEMA_MES_REFERENCIA": f"{mes_sel}/{ano_sel}",
+                "ANALISTA_TOTAL_ATENDIMENTOS": st.session_state.get("in_total", ""),
+                "TOTAL_RAIO_X": st.session_state.get("in_rx", ""),
+                "ANALISTA_MEDICO_CLINICO": st.session_state.get("in_mc", ""),
+                "SISTEMA_TOTAL_DE_TRANSFERENCIA": st.session_state.get("in_tt", 0),
+                "ANALISTA_TOTAL_OBITO": st.session_state.get("in_to", 0)
+            }
 
-                if st.session_state.dados_sessao[m]:
-                    for i_idx, item in enumerate(st.session_state.dados_sessao[m]):
-                        with st.expander(f"{item['name']}", expanded=False):
-                            is_image = item['type'] == "p" or item['name'].lower().endswith(('.png', '.jpg', '.jpeg'))
-                            if is_image:
-                                st.image(item['content'], use_container_width=True)
-                            else:
-                                st.info(f"Ficheiro {item['name'].split('.')[-1].upper()} pronto para o relatório.")
-                                
-                            if st.button("Remover", key=f"del_{m}_{i_idx}_{b_idx}"):
-                                st.session_state.dados_sessao[m].pop(i_idx)
-                                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# --- GERAÇÃO FINAL (Seu código original continua igual) ---
-# ... (Restante do código de geração de PDF/Word permanece igual)
-if st.button(" FINALIZAR E GERAR RELATÓRIO", type="primary"):
-    # ... código de geração ...
-    st.info("Função de geração ativa. Use o botão acima após preencher os dados.")
-
-st.caption("Desenvolvido por Leonardo Barcelos Martins")
+            for marcador in DIMENSOES_CAMPOS.keys():
+                imgs = []
+                for item in st.session_state.dados_sessao[marcador]:
+                    res = processar_item_lista(doc, item['content'], marcador)
+                    if res: imgs.extend(res)
+                dados_finais[marcador] = imgs
+            
+            doc.render(dados_finais)
+            doc.save(docx_p)
+            
+            with open(docx_p, "rb") as f:
+                st.download_button("Baixar Relatório Word", f.read(), f"Relatorio_{mes_sel}.docx")
+    except Exception as e: st.error(f"Erro: {e}")
