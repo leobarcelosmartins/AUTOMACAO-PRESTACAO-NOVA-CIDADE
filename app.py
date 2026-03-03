@@ -179,9 +179,28 @@ def processar_item_lista(doc_template, item, marcador):
             item.save(img_buf, format='PNG')
             img_buf.seek(0)
             return [InlineImage(doc_template, img_buf, width=Mm(largura))]
+        
+        if isinstance(item, bytes):
+            return [InlineImage(doc_template, io.BytesIO(item), width=Mm(largura))]
+            
         if hasattr(item, 'seek'): item.seek(0)
+        
+        ext = getattr(item, 'name', '').lower()
+        if marcador == "TABELA_TRANSFERENCIA" and (ext.endswith(".xlsx") or ext.endswith(".xls")):
+            res = excel_para_imagem(doc_template, item)
+            return [res] if res else []
+            
+        if ext.endswith(".pdf"):
+            pdf = fitz.open(stream=item.read(), filetype="pdf")
+            imgs = []
+            for pg in pdf:
+                pix = pg.get_pixmap(matrix=fitz.Matrix(2, 2))
+                imgs.append(InlineImage(doc_template, io.BytesIO(pix.tobytes()), width=Mm(largura)))
+            pdf.close()
+            return imgs
+            
         return [InlineImage(doc_template, item, width=Mm(largura))]
-    except:
+    except Exception as e:
         return []
 
 # --- SIDEBAR ---
@@ -382,4 +401,5 @@ if st.button(" FINALIZAR E GERAR RELATÓRIO", type="primary"):
         st.error(f"Erro na geração: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
 
