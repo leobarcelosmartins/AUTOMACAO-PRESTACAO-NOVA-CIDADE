@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-st.set_page_config(page_title="Gerador de Relatórios V0.7.12", layout="wide")
+st.set_page_config(page_title="RELATÓRIO ASSISTENCIAL MENSAL - NOVA CIDADE", layout="wide")
 
 # --- CONSTANTES DO CONTRATO ---
 META_DIARIA_CONTRATO = 250
@@ -187,7 +187,7 @@ def processar_item_lista(doc_template, item, marcador):
 # --- SIDEBAR ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/3208/3208726.png", width=100)
-    st.title("Painel de Controlo")
+    st.title("Painel de Controle")
     st.markdown("---")
     total_anexos = sum(len(v) for v in st.session_state.dados_sessao.values())
     st.metric("Total de Anexos", total_anexos)
@@ -369,16 +369,17 @@ if st.button(" FINALIZAR E GERAR RELATÓRIO", type="primary"):
             c_down1, c_down2 = st.columns(2)
             with c_down1:
                 with open(docx_p, "rb") as f_w:
-                    st.download_button(label="Baixar WORD (.docx)", data=f_w.read(), file_name=f"Relatorio_{st.session_state.get('sel_mes')}.docx")
+                    st.download_button(label="Baixar WORD (.docx)", data=f_w.read(), file_name=f"RELATÓRIO ASSISTENCIAL MENSAL - NOVA CIDADE {st.session_state.get('sel_mes')}.docx")
             with c_down2:
                 try:
                     converter_para_pdf(docx_p, tmp)
                     pdf_p = os.path.join(tmp, "relatorio.pdf")
                     if os.path.exists(pdf_p):
                         with open(pdf_p, "rb") as f_p:
-                            st.download_button(label="Baixar PDF", data=f_p.read(), file_name=f"Relatorio_{st.session_state.get('sel_mes')}.pdf")
+                            st.download_button(label="Baixar PDF", data=f_p.read(), file_name=f"RELATÓRIO ASSISTENCIAL MENSAL - NOVA CIDADE {st.session_state.get('sel_mes')}.pdf")
                 except: st.warning("Conversão PDF indisponível.")
     except Exception as e:
         st.error(f"Erro na geração: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
