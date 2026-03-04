@@ -67,12 +67,12 @@ st.markdown("""
 # --- DICIONÁRIO DE DIMENSÕES ---
 DIMENSOES_CAMPOS = {
     "IMAGEM_PRINT_ATENDIMENTO": 165, "PRINT_CLASSIFICACAO": 160,
-    "IMAGEM_DOCUMENTO_RAIO_X": 165, "TABELA_TRANSFERENCIA": 90,
-    "GRAFICO_TRANSFERENCIA": 160, "TABELA_OBITO": 180, 
-    "TABELA_CCIH": 160, "IMAGEM_NEP": 160,
+    "IMAGEM_DOCUMENTO_RAIO_X": 150, "TABELA_TRANSFERENCIA": 90,
+    "GRAFICO_TRANSFERENCIA": 150, "TABELA_OBITO": 180, 
+    "TABELA_CCIH": 175, "IMAGEM_NEP": 160,
     "IMAGEM_TREINAMENTO_INTERNO": 160, "IMAGEM_MELHORIAS": 160,
     "GRAFICO_OUVIDORIA": 155, "PDF_OUVIDORIA_INTERNA": 165,
-    "TABELA_QUALITATIVA_IMG": 160
+    "TABELA_QUALITATIVA_IMG": 185
 }
 
 # --- CONFIGURAÇÃO DE PERSISTÊNCIA ---
@@ -250,11 +250,11 @@ t_manual, t_evidencia = st.tabs(["Dados", "Evidências"])
 with t_manual:
     st.markdown("### Configuração do Período e Metas")
     c1, c2, c3 = st.columns(3)
-    meses_pt = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    meses_pt = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
     with c1: 
         mes_selecionado = st.selectbox("Mês de Referência", meses_pt, key="sel_mes")
     with c2: 
-        ano_selecionado = st.selectbox("Ano", [2024, 2025, 2026, 2027], index=2, key="sel_ano")
+        ano_selecionado = st.selectbox("Ano", [2025, 2026, 2027, 2028], index=2, key="sel_ano")
     with c3:
         st.text_input("Total de Atendimentos", key="in_total")
 
@@ -401,5 +401,6 @@ if st.button(" FINALIZAR E GERAR RELATÓRIO", type="primary"):
         st.error(f"Erro na geração: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
 
 
