@@ -72,7 +72,7 @@ DIMENSOES_CAMPOS = {
     "TABELA_CCIH": 175, "IMAGEM_NEP": 160,
     "IMAGEM_TREINAMENTO_INTERNO": 160, "IMAGEM_MELHORIAS": 160,
     "GRAFICO_OUVIDORIA": 155, "PDF_OUVIDORIA_INTERNA": 165,
-    "TABELA_QUALITATIVA_IMG": 185
+    "TABELA_QUALITATIVA_IMG": 190
 }
 
 # --- CONFIGURAÇÃO DE PERSISTÊNCIA ---
@@ -401,6 +401,7 @@ if st.button(" FINALIZAR E GERAR RELATÓRIO", type="primary"):
         st.error(f"Erro na geração: {e}")
 
 st.caption("Desenvolvido por Leonardo Barcelos Martins")
+
 
 
 
